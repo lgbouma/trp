@@ -42,8 +42,25 @@ def get_ticids(sample_id, lcpipeline):
 
     if sample_id == 'debug':
         ticids = [
-            "402980664",
+            "402980664"
         ]
+
+        N_stars_to_search = len(ticids)
+        N_lcs_to_search = -1
+
+    elif "iterlist_debug" in sample_id:
+        if sample_id == 'iterlist_debug0':
+            ticids = [
+                "368129164",
+                "311092148"
+            ]
+        elif sample_id == 'iterlist_debug1':
+            ticids = [
+                "50745567",
+                "178155030"
+            ]
+        else:
+            raise NotImplementedError
 
         N_stars_to_search = len(ticids)
         N_lcs_to_search = -1

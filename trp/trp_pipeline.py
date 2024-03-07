@@ -54,7 +54,21 @@ from trp.getters import get_lcpaths_fromlightkurve_given_ticid
 
 #############
 
-def run_trp():
+def run_trp(sample_id):
+    """
+    sample_id:
+        This unique identifying string pairs to a list including at least one
+        ticid, via `trp.starlists.get_ticids`.
+
+    Implemented sample_ids:
+        * 'iterlist_debug0',
+        * 'iterlist_debug1',
+        * 'debug'
+
+    TODOs:
+    '1to20pc'
+     '20to40pc'
+    """
 
     #################
     # begin options #
@@ -63,30 +77,21 @@ def run_trp():
 
     lcpipeline = 'qlp' # "qlp" or "spoc2min"
 
-    sample_ids = [
-        'debug'
-        # ### example samples:
-        #'1to20pc'
-        # '20to40pc'
-    ]
-
     ###############
     # end options #
     ###############
 
-    for sample_id in sample_ids:
+    ticids = get_ticids(sample_id, lcpipeline)
 
-        ticids = get_ticids(sample_id, lcpipeline)
+    if len(ticids) > 100 and forcepdf:
+        raise NotImplementedError
 
-        if len(ticids) > 100 and forcepdf:
-            raise NotImplementedError
-
-        for ticid in ticids:
-            LOGINFO(42*'-')
-            LOGINFO(f"Beginning {ticid}...")
-            find_rotperiod(
-                ticid, sample_id, forcepdf=forcepdf, lcpipeline=lcpipeline
-            )
+    for ticid in ticids:
+        LOGINFO(42*'-')
+        LOGINFO(f"Beginning {ticid}...")
+        find_rotperiod(
+            ticid, sample_id, forcepdf=forcepdf, lcpipeline=lcpipeline
+        )
 
     LOGINFO("Finished 🎉🎉🎉")
 
