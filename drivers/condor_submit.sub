@@ -1,7 +1,7 @@
 universe    = vanilla
 +SingularityImage = "/cvmfs/singularity.opensciencegrid.org/opensciencegrid/osgvo-ubuntu-20.04:latest"
 
-executable  = secret_run_pipeline.sh
+executable  = exec_pipeline.sh
 arguments = $(sample_id)
 
 transfer_input_files = run_trp.py, py38.tar.gz
