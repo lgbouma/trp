@@ -1,8 +1,8 @@
 import numpy as np, pandas as pd
+from trp.trp_pipeline import run_trp
 
 def main():
-    from trp.paths import DATADIR
-    print('test worked.')
+    run_trp()
 
 if __name__ == "__main__":
     main()
