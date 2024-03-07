@@ -8,6 +8,7 @@ def test_imports():
 
         try:
             exec(f"import {m}")
+            print(f"'import {m}' passed.")
             dep_worked = True
         except Exception as e:
             print(e)
