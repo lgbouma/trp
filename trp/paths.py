@@ -2,6 +2,8 @@ import os, socket
 from trp import __path__
 from os.path import join
 
+VERBOSE = 0
+
 DATADIR = os.path.join(__path__[0], 'data')
 
 # archive (backed-up) results here
@@ -13,5 +15,6 @@ if not os.path.exists(CACHEDIR): os.mkdir(CACHEDIR)
 
 for l in [DATADIR, RESULTSDIR, CACHEDIR]:
     if not os.path.exists(l):
-        print(f"Making {l}")
+        if VERBOSE:
+            print(f"Making {l}")
         os.mkdir(l)
