@@ -1,0 +1,23 @@
+universe    = vanilla
++SingularityImage = "/cvmfs/singularity.opensciencegrid.org/opensciencegrid/osgvo-ubuntu-20.04:latest"
+
+executable  = secret_run_pipeline.sh
+arguments = $(sample_id)
+
+transfer_input_files = run_trp.py, py38.tar.gz
+
+should_transfer_files   = Yes
+when_to_transfer_output = ON_EXIT
+transfer_output_remaps  = "joboutput_$(sample_id).tar.gz=/ospool/ap21/data/ekul/joboutput_$(sample_id).tar.gz"
+
+log           = logs/job_$(sample_id)_$(Cluster)_$(Process).log
+error         = logs/job_$(sample_id)_$(Cluster)_$(Process).err
+output        = logs/job_$(sample_id)_$(Cluster)_$(Process).out
+
++JobDurationCategory = "Medium"
+
+request_cpus    = 1 
+request_memory  = 2GB
+request_disk    = 2GB
+
+queue sample_id from sample_id.list
