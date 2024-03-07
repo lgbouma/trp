@@ -5,7 +5,7 @@ cd ../ ;
 tar czf trp-0.0.0.tar.gz trp ;
 mv trp-0.0.0.tar.gz $HOME/environments/ ;
 cd $HOME/environments/ ;
-pip3 install -r requirements.txt ;
+pip3 install --target=$HOME/environments/py38 -r requirements.txt ;
 pip3 install --target=$HOME/environments/py38 --upgrade trp-0.0.0.tar.gz ;
 rm trp-0.0.0.tar.gz ;
 
