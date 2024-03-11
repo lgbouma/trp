@@ -5,3 +5,4 @@ matplotlib==3.7.1
 scipy==1.10.1
 pytest==6.2.5
 lightkurve==2.4.0
+astrobase==0.5.3
