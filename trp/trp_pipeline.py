@@ -1,6 +1,8 @@
 """
 Contents:
     run_trp
+    find_rotperiod
+    prepare_rot_light_curve
 """
 #############
 ## LOGGING ##
@@ -43,6 +45,10 @@ from trp.starlists import get_ticids
 
 from trp.getters import get_lcpaths_fromlightkurve_given_ticid
 
+from complexrotators.lcprocessing import prepare_cpv_light_curve
+from trp.lcprocessing import rotation_periodsearch
+
+from astrobase.lcmath import time_bin_magseries
 #TODO
 #from complexrotators.lcprocessing import (
 #    cpv_periodsearch, count_phased_local_minima, prepare_cpv_light_curve
@@ -73,10 +79,11 @@ def run_trp(sample_id):
     #################
     # begin options #
     #################
-    forcepdf = 1 # if yes, perhaps also have "LOCALDEBUG" set true..
+    forcepdf = 0 # if yes, perhaps also have "LOCALDEBUG" set true..
+    write_astrobase_pngs = 0
 
     lcpipeline = 'qlp' # "qlp" or "spoc2min"
-
+    periodogram_method = 'ls'
     ###############
     # end options #
     ###############
@@ -90,34 +97,48 @@ def run_trp(sample_id):
         LOGINFO(42*'-')
         LOGINFO(f"Beginning {ticid}...")
         find_rotperiod(
-            ticid, sample_id, forcepdf=forcepdf, lcpipeline=lcpipeline
+            ticid, sample_id, forcepdf=forcepdf, lcpipeline=lcpipeline,
+            periodogram_method=periodogram_method,
+            write_astrobase_pngs=write_astrobase_pngs
         )
 
     LOGINFO("Finished 🎉🎉🎉")
 
 
-def find_rotperiod(ticid, sample_id, forcepdf=0, lcpipeline='qlp'):
+def find_rotperiod(ticid, sample_id, forcepdf=0, lcpipeline='qlp',
+                   periodogram_method='ls', write_astrobase_pngs=0):
     """
+    This pipeline takes a light curve (SPOC 2-minute or QLP), remove non-zero
+    quality flags, and median-normalizes.  It then bins to a 30 minute cadence,
+    and runs a periodogram (by default, lomb scargle) on the resulting points.
+    Results are cached in a mix of text files using `configparser` and pickle
+    files.
+
     Args:
 
-    ticid: e.g. "289840928"
+        ticid (str): e.g. "289840928"
 
-    sample_id: e.g., "30to50pc_mkdwarf" (used for cacheing)
+        sample_id (str): e.g., "30to50pc_mkdwarf" (used for cacheing)
 
-    forcepdf: if true, will require the pdf plot to be made, even if the usual
-        exit code criteria were not met.
+        forcepdf (bool): if true, will require the pdf plot to be made, even if the usual
+            exit code criteria were not met.
 
-    lcpipeline: "qlp" or "spoc2min"
+        lcpipeline (str): "qlp" or "spoc2min"
+
+        periodogram_method (str): "ls" or "pdm"
+
+        write_astrobase_pngs (bool): whther to generate the astrobase checkplot pngs,
+        a 3x3 grid showing the light curve, periodogram, and phased versions of
+        the light curve.  Good for debugging; not good enough for assessing
+        what is really happening.
 
     exit code definitions:
-        exitcode 1: periodogram_condition was met.  e.g.,
-            periodogram_condition = (period < 10) & (lspval > 0.1)
 
-        exitcode 2: periodogram_condition was not met.
+        exitcode 0: a periodgram was successfully calculated.
 
-        exitcode 3: (todo)
+        exitcode 1: failed; non-finite light curve.
 
-        exitcode 4: (todo)
+        exitcode 2: failed; too few points for a period.
     """
 
     #
@@ -145,11 +166,9 @@ def find_rotperiod(ticid, sample_id, forcepdf=0, lcpipeline='qlp'):
         if len(foundexitcodes) > 0:
             minexitcode = np.nanmin(foundexitcodes)
 
-    MINIMUM_EXITCODE = 2
+    MINIMUM_EXITCODE = 0
     if forcepdf:
-        MINIMUM_EXITCODE = 1
-    #1 if any kind of exit means do not rerun
-    #2 if only a periodogram or not enoigh dip exit means dont rerun
+        MINIMUM_EXITCODE = -1
     if minexitcode >= MINIMUM_EXITCODE:
         LOGINFO(f"TIC{ticid}: found log for {ticid} with exitcode {minexitcode}. skip.")
         return 0
@@ -158,7 +177,9 @@ def find_rotperiod(ticid, sample_id, forcepdf=0, lcpipeline='qlp'):
     #
     # get data
     #
-    lcpaths = get_lcpaths_fromlightkurve_given_ticid(ticid, lcpipeline)
+    lcpaths = get_lcpaths_fromlightkurve_given_ticid(
+        ticid, lcpipeline, cachedir=cachedir
+    )
 
     #
     # for each light curve (sector / cadence specific), clean, calculate the
@@ -187,12 +208,87 @@ def find_rotperiod(ticid, sample_id, forcepdf=0, lcpipeline='qlp'):
                 if not forcepdf:
                     continue
 
-        #import IPython; IPython.embed()
-        # #FIXME TODO: implement!
-        # # get the relevant light curve data
-        # (time, flux, qual, x_obs, y_obs, y_flat, y_trend, x_trend, cadence_sec,
-        #  sector, starid) = prepare_rot_light_curve(
-        #      lcpath, cachedir, lcpipeline=lcpipeline
-        #  )
+        (time, flux, qual, x_obs, y_obs, _, _, _, cadence_sec,
+         sector, starid) = prepare_rot_light_curve(
+             lcpath, cachedir, lcpipeline=lcpipeline
+         )
+
+        if y_obs is None:
+            LOGWARNING(f"{starid}: Failed; non-finite light curve.")
+            exitcode = {'exitcode': 1}
+            pu.save_status(logpath, 'exitcode', exitcode)
+            continue
+
+        bd = time_bin_magseries(x_obs, y_obs, minbinelems=1)
+        btime, bflux = bd['binnedtimes'], bd['binnedmags']
+
+        if bd['nbins'] <= 20:
+            LOGWARNING(f"{starid}: Failed; too few points for a period.")
+            exitcode = {'exitcode': 2}
+            pu.save_status(logpath, 'exitcode', exitcode)
+            continue
+
+        #
+        # Calculate the periodogram using the binned (30-minute cadence) light
+        # curve.  Cache the original (non-zero quality flags, and
+        # median-normalized) light curve for future viz, x_obs and y_obs.
+        #
+        nworkers = 1 # 1 # if "None" will multithread
+        cachedict = {
+            'x_obs': x_obs, # as above.
+            'y_obs': y_obs
+        }
+        d = rotation_periodsearch(
+            btime, bflux, starid, cachedir, t0='binmin',
+            periodogram_method=periodogram_method, do_finetune=0,
+            write_pngs=write_astrobase_pngs,
+            nworkers=nworkers, cachedict=cachedict
+        )
+
+        psr = {
+            'starid': starid,
+            'sector': sector,
+            'cadence_sec': cadence_sec,
+            'periodogram_method': periodogram_method,
+            'period': d['period'], # default lomb scargle period
+            'bestlspval': d['lsp']['bestlspval'],
+            't0': d['t0'],
+            'nbestperiods': d['lsp']['nbestperiods'],
+            'nbestlspvals': d['lsp']['nbestlspvals']
+        }
+        pu.save_status(logpath, f'rotation_periodsearch_{periodogram_method}_results', psr)
+        LOGINFO(f"Updated {logpath} with "
+                f"rotation_periodsearch_{periodogram_method}_results")
+
+        LOGINFO(f"{starid}: saved {periodogram_method} results; finished.")
+        exitcode = {'exitcode': 0}
+        pu.save_status(logpath, 'exitcode', exitcode)
+
+        ##########################################
+
+        # NOTE: may wish to add option to generate a vetting plot in the
+        # future; for now, omit and just calculate periodograms.
+
+        # outpath = join(cachedir, f'{starid}_cpvvetter.pdf')
+        # if not os.path.exists(outpath):
+        #     plot_cpvvetter(
+        #         outpath, lcpath, starid, periodsearch_result=d,
+        #         findpeaks_result=r, lcpipeline=lcpipeline
+        #     )
+        # else:
+        #     LOGINFO(f"Found {outpath}")
+
+        ##########################################
 
 
+def prepare_rot_light_curve(lcpath, cachedir, lcpipeline='qlp'):
+    """
+    Given a light curve (SPOC 2-minute or QLP), remove non-zero quality flags,
+    and median-normalize.
+    Cache the output.
+    """
+
+    return prepare_cpv_light_curve(
+        lcpath, cachedir, returncadenceno=0, lcpipeline=lcpipeline,
+        runmedianfilter=0, rotmode=1
+    )
