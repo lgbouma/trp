@@ -5,6 +5,10 @@ cd ../ ;
 tar czf trp-0.0.0.tar.gz trp ;
 mv trp-0.0.0.tar.gz $HOME/environments/ ;
 cd $HOME/environments/ ;
+
+# NOTE: one dependency is not included in this auto-updated: the
+# complexrotators package, https://github.com/lgbouma/cpv, because I have not
+# put it on pip yet.
 pip3 install --target=$HOME/environments/py38 -r requirements.txt ;
 pip3 install --target=$HOME/environments/py38 --upgrade trp-0.0.0.tar.gz ;
 rm trp-0.0.0.tar.gz ;
