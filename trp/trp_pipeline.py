@@ -127,6 +127,8 @@ def find_rotperiod(ticid, sample_id, forcepdf=0, lcpipeline='qlp',
         exitcode 1: failed; non-finite light curve.
 
         exitcode 2: failed; too few points for a period.
+
+        exitcode 3: failed to allocate memory
     """
 
     #
@@ -228,12 +230,18 @@ def find_rotperiod(ticid, sample_id, forcepdf=0, lcpipeline='qlp',
             'x_obs': x_obs, # as above.
             'y_obs': y_obs
         }
-        d = rotation_periodsearch(
-            btime, bflux, starid, cachedir, t0='binmin',
-            periodogram_method=periodogram_method, do_finetune=0,
-            write_pngs=write_astrobase_pngs,
-            nworkers=nworkers, cachedict=cachedict
-        )
+        try:
+            d = rotation_periodsearch(
+                btime, bflux, starid, cachedir, t0='binmin',
+                periodogram_method=periodogram_method, do_finetune=0,
+                write_pngs=write_astrobase_pngs,
+                nworkers=nworkers, cachedict=cachedict
+            )
+        except OSError as e:
+            LOGWARNING(f"{starid}: Failed to allocate memory ({e}).")
+            exitcode = {'exitcode': 3}
+            pu.save_status(logpath, 'exitcode', exitcode)
+            continue
 
         psr = {
             'starid': starid,
