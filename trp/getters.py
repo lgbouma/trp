@@ -36,21 +36,31 @@ from os.path import join
 from glob import glob
 import numpy as np, pandas as pd
 import lightkurve as lk
+import time
 
 from trp.paths import CACHEDIR
 
 #############
 
 def get_lcpaths_fromlightkurve_given_ticid(
-    ticid, lcpipeline, require_lc=1, cachedir=CACHEDIR
+    ticid, lcpipeline, require_lc=1, cachedir=CACHEDIR, max_iter=3
     ):
     """
     Args:
         ticid: e.g. "289840928"
         lcpipeline: "qlp", "spoc2min", or "cdips'
+        max_iter (int): maximum iterations to re-attempt MAST query.
 
     Returns:
         list of light curve paths
+
+    Notes:
+        Empirically, somewhere in the 0.1-1% of lightkurve queries with
+        search_lightcurve seem to raise errors: SSLError, TimeoutError,
+        ConnectionError, etc.  None of these errors seem to be reproducible.
+        The approach here is to therefore wait a minute, and try again, for at
+        most three iterations.  If it eventually fails, and require_lc is
+        false, you'll get an empty list.  Else an assertion error is raised.
     """
     # ticid like "289840928"
 
@@ -61,7 +71,23 @@ def get_lcpaths_fromlightkurve_given_ticid(
         ticid_str = f"TIC {ticid}"
 
     LOGINFO(f"Beginning search for {ticid_str}...")
-    lcset = lk.search_lightcurve(ticid_str)
+    ix = 0
+    lcset = None
+    while ix < max_iter and lcset is None:
+        try:
+            lcset = lk.search_lightcurve(ticid_str)
+        except Exception as e:
+            LOGWARNING(f"lk.search_lightcurve({ticid_str}) failed with {e}.")
+            LOGWARNING(f"Retrying iter {ix}/{max_iter}...")
+            time.sleep(60)
+            ix += 1
+    if lcset is None:
+        if not require_lc:
+            LOGWARNING(f"lk.search_lightcurve({ticid_str}) failed with {e}.")
+            return []
+        else:
+            msg = f'{ticid}: did not get LC'
+            assert len(lcpaths) > 0, msg
 
     if lcpipeline == 'spoc2min':
         sel = (lcset.author=='SPOC') & (lcset.exptime.value == 120)
