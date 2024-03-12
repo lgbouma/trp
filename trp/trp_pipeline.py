@@ -42,21 +42,11 @@ from trp.paths import DATADIR, RESULTSDIR, CACHEDIR
 from trp import pipeline_utils as pu
 
 from trp.starlists import get_ticids
-
 from trp.getters import get_lcpaths_fromlightkurve_given_ticid
-
-from complexrotators.lcprocessing import prepare_cpv_light_curve
 from trp.lcprocessing import rotation_periodsearch
 
+from complexrotators.lcprocessing import prepare_cpv_light_curve
 from astrobase.lcmath import time_bin_magseries
-#TODO
-#from complexrotators.lcprocessing import (
-#    cpv_periodsearch, count_phased_local_minima, prepare_cpv_light_curve
-#)
-#from complexrotators.plotting import (
-#    plot_phased_light_curve, plot_dipcountercheck, plot_cpvvetter
-#)
-
 
 #############
 
@@ -70,10 +60,8 @@ def run_trp(sample_id):
         * 'iterlist_debug0',
         * 'iterlist_debug1',
         * 'debug'
-
-    TODOs:
-    '1to20pc'
-     '20to40pc'
+        * "NtoMpc" (e.g., '1to10pc', '10to20pc', etc)
+            (for scale, 90to100pc is ~35k stars, ~100k lcs)
     """
 
     #################
