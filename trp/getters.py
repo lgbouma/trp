@@ -43,7 +43,7 @@ from trp.paths import CACHEDIR
 
 def get_lcpaths_fromlightkurve_given_ticid(
     ticid, lcpipeline, require_lc=1, cachedir=CACHEDIR
-):
+    ):
     """
     Args:
         ticid: e.g. "289840928"

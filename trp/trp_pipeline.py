@@ -161,13 +161,15 @@ def find_rotperiod(ticid, sample_id, forcepdf=0, lcpipeline='qlp',
         LOGINFO(f"TIC{ticid}: found log for {ticid} with exitcode {minexitcode}. skip.")
         return 0
 
-
     #
     # get data
     #
     lcpaths = get_lcpaths_fromlightkurve_given_ticid(
-        ticid, lcpipeline, cachedir=cachedir
+        ticid, lcpipeline, cachedir=cachedir, require_lc=0
     )
+    if len(lcpaths) == 0:
+        LOGINFO(f"TIC{ticid}: Failed to get any light curves; continue.")
+        return 0
 
     #
     # for each light curve (sector / cadence specific), clean, calculate the
