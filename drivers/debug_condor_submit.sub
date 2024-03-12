@@ -4,7 +4,7 @@ universe    = vanilla
 executable  = exec_pipeline.sh
 arguments = $(sample_id)
 
-transfer_input_files = run_trp.py, py38.tar.gz, /ospool/ap21/data/ekul/chunklists/5to10pc/$(sample_id).csv
+transfer_input_files = run_trp.py, py38.tar.gz
 
 should_transfer_files   = Yes
 when_to_transfer_output = ON_EXIT
@@ -20,4 +20,4 @@ request_cpus    = 1
 request_memory  = 2GB
 request_disk    = 2GB
 
-queue sample_id from sampleids/5to10pc.sampleids
+queue sample_id from sample_id.list
