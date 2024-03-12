@@ -57,7 +57,7 @@ def make_job_chunks(
     for job_ix, chunk in enumerate(chunked_ticids):
 
         outcsv = join(
-            outdir, f"{volumestr}_job{str(job_ix).zfill(7)}_ticids.csv"
+            outdir, f"{volumestr}_job{str(job_ix).zfill(7)}_ticid.csv"
         )
         df = pd.DataFrame({
             'ticid': chunk
