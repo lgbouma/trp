@@ -76,7 +76,7 @@ if __name__ == "__main__":
     upper_grid = np.arange(5, 105, 5)
 
     lower_grid = np.arange(100, 500, 5)
-    upper_grid = np.arange(100, 505, 5)
+    upper_grid = np.arange(105, 505, 5)
 
 
     for lower, upper in zip(lower_grid, upper_grid):
