@@ -1,14 +1,24 @@
+#
+# Condor submit script to run the TESS rotation pipeline, `trp`.  The job,
+# "exec_pipeline.sh", is executed in units of "sample_id"'s.  One `sample_id`
+# corresponds to of order 50 stars.  The starlist is transferred as a csv file,
+# along with the pre-packaged light curves themselves, as a tarball.  The
+# environment on which the pipeline is run is transferred as its own tarball as
+# well.  Output is returned as tarballs to $DATA/RESULTS.
+#
+# Usage: update "0to50pc" string.  Then `condor_submit condor_submit.sub`.
+#
 universe    = vanilla
 +SingularityImage = "/cvmfs/singularity.opensciencegrid.org/opensciencegrid/osgvo-ubuntu-20.04:latest"
 
 executable  = exec_pipeline.sh
 arguments = $(sample_id)
 
-transfer_input_files = run_trp.py, py38.tar.gz, /ospool/ap21/data/ekul/chunklists/5to10pc/$(sample_id).csv
+transfer_input_files = run_trp.py, py38.tar.gz, /ospool/ap21/data/ekul/chunklists/0to5pc/$(sample_id).csv, /ospool/ap21/data/ekul/chunklists/0to5pc/$(sample_id)_lightcurves.tar.gz
 
 should_transfer_files   = Yes
 when_to_transfer_output = ON_EXIT
-transfer_output_remaps  = "joboutput_$(sample_id).tar.gz=/ospool/ap21/data/ekul/joboutput_$(sample_id).tar.gz"
+transfer_output_remaps  = "joboutput_$(sample_id).tar.gz=/ospool/ap21/data/ekul/RESULTS/joboutput_$(sample_id).tar.gz"
 
 log           = logs/job_$(sample_id)_$(Cluster)_$(Process).log
 error         = logs/job_$(sample_id)_$(Cluster)_$(Process).err
@@ -20,4 +30,4 @@ request_cpus    = 1
 request_memory  = 2GB
 request_disk    = 2GB
 
-queue sample_id from sampleids/5to10pc.sampleids
+queue sample_id from sampleids/0to5pc.sampleids
