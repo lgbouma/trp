@@ -1,6 +1,9 @@
 """
 Contents:
     get_ticids
+
+Helpers:
+    _extract_tarball
 """
 #############
 ## LOGGING ##
@@ -31,7 +34,7 @@ LOGEXCEPTION = LOGGER.exception
 #############
 ## IMPORTS ##
 #############
-import os, pickle
+import os, pickle, tarfile
 from os.path import join
 from glob import glob
 import numpy as np, pandas as pd
@@ -39,6 +42,12 @@ import numpy as np, pandas as pd
 from trp.paths import DATADIR
 
 #############
+
+def _extract_tarball(tarball_name, extract_path):
+    with tarfile.open(tarball_name, "r:gz") as tar:
+        tar.extractall(path=extract_path)
+        LOGINFO(f"Extracted {tarball_name} to {extract_path}")
+
 
 def get_ticids(sample_id, lcpipeline):
 
@@ -122,6 +131,11 @@ def get_ticids(sample_id, lcpipeline):
         csvpath = f"./{sample_id}.csv"
         LOGINFO(f"Attempting to get TICIDs from {csvpath}...")
         df = pd.read_csv(csvpath)
+
+        # light curves are passed as tarball via HTCondor..
+        tarballpath = f"./{sample_id}_lightcurves.tar.gz"
+        extractpath = "./"
+        _extract_tarball(tarballpath, extractpath)
 
         ticids = np.unique(list(df["ticid"].astype(str)))
 
