@@ -166,9 +166,20 @@ def find_rotperiod(ticid, sample_id, forcepdf=0, lcpipeline='qlp',
     #
     # get data
     #
-    lcpaths = get_lcpaths_fromlightkurve_given_ticid(
-        ticid, lcpipeline, cachedir=cachedir, require_lc=0
-    )
+    lcpaths = []
+    if lcpipeline == 'qlp':
+        # Assuming HTCondor transferred tarball, and extraction happened in
+        # get_ticids
+        LOGINFO(f"Beginning local fileglob search for TIC {ticid}...")
+        lcpaths = glob(f"./hlsp_qlp_tess_ffi_s*-0*{ticid}_tess*llc.fits")
+        LOGINFO(f"Got N={len(lcpaths)} for TIC {ticid}...")
+
+    if len(lcpaths) == 0 and lcpipeline == 'qlp':
+        # Fall back to lightkurve attempt if transfer failed.
+        lcpaths = get_lcpaths_fromlightkurve_given_ticid(
+            ticid, lcpipeline, cachedir=cachedir, require_lc=0
+        )
+
     if len(lcpaths) == 0:
         LOGINFO(f"TIC{ticid}: Failed to get any light curves; continue.")
         return 0
