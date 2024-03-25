@@ -10,16 +10,7 @@ from os.path import join
 import os, tarfile
 import pandas as pd, numpy as np
 from glob import glob
-
-def create_tarball(fullpaths, tarball_path):
-    with tarfile.open(tarball_path, "w:gz") as tar:
-        for file_path in fullpaths:
-            if os.path.isfile(file_path):
-                tar.add(file_path, arcname=os.path.basename(file_path))
-            else:
-                print(f"Warning: {file_path} is not a valid file.")
-    print(f"...Made {tarball_path}")
-
+from trp.tar_utils import create_tarball
 
 def package_jobchunk_lightcurves(
     df, volumestr = None,
