@@ -1,9 +1,6 @@
 """
 Contents:
     get_ticids
-
-Helpers:
-    _extract_tarball
 """
 #############
 ## LOGGING ##
@@ -40,14 +37,9 @@ from glob import glob
 import numpy as np, pandas as pd
 
 from trp.paths import DATADIR
+from trp.tar_utils import extract_tarball
 
 #############
-
-def _extract_tarball(tarball_name, extract_path):
-    with tarfile.open(tarball_name, "r:gz") as tar:
-        tar.extractall(path=extract_path)
-        LOGINFO(f"Extracted {tarball_name} to {extract_path}")
-
 
 def get_ticids(sample_id, lcpipeline):
 
@@ -135,7 +127,7 @@ def get_ticids(sample_id, lcpipeline):
         # light curves are passed as tarball via HTCondor..
         tarballpath = f"./{sample_id}_lightcurves.tar.gz"
         extractpath = "./"
-        _extract_tarball(tarballpath, extractpath)
+        extract_tarball(tarballpath, extractpath)
 
         ticids = np.unique(list(df["ticid"].astype(str)))
 
