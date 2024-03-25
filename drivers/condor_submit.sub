@@ -6,7 +6,11 @@
 # environment on which the pipeline is run is transferred as its own tarball as
 # well.  Output is returned as tarballs to $DATA/RESULTS.
 #
-# Usage: update "0to50pc" string.  Then `condor_submit condor_submit.sub`.
+# Usage:
+#  Auto: Run `./jobsubmitter.sh 0 100` (to submit job chunks from 0 to 100pc)
+#
+#  Manual: update "XXtoYYpc" string.  Then `condor_submit condor_submit.sub`.
+#  
 #
 universe    = vanilla
 +SingularityImage = "/cvmfs/singularity.opensciencegrid.org/opensciencegrid/osgvo-ubuntu-20.04:latest"
@@ -14,7 +18,7 @@ universe    = vanilla
 executable  = exec_pipeline.sh
 arguments = $(sample_id)
 
-transfer_input_files = run_trp.py, py38.tar.gz, /ospool/ap21/data/ekul/chunklists/0to5pc/$(sample_id).csv, /ospool/ap21/data/ekul/chunklists/0to5pc/$(sample_id)_lightcurves.tar.gz
+transfer_input_files = run_trp.py, py38.tar.gz, /ospool/ap21/data/ekul/chunklists/$(volumeslice)/$(sample_id).csv, /ospool/ap21/data/ekul/chunklists/$(volumeslice)/$(sample_id)_lightcurves.tar.gz
 
 should_transfer_files   = Yes
 when_to_transfer_output = ON_EXIT
@@ -30,4 +34,5 @@ request_cpus    = 1
 request_memory  = 2GB
 request_disk    = 2GB
 
-queue sample_id from sampleids/0to5pc.sampleids
+#queue sample_id from sampleids/DEBUG.LIST
+queue sample_id from sampleids/$(volumeslice).sampleids
