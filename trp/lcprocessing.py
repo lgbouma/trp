@@ -1,6 +1,7 @@
 """
 Contents:
     | rotation_periodsearch
+    | calculate_lsp
 """
 
 #######################################
@@ -42,7 +43,11 @@ LOGEXCEPTION = LOGGER.exception
 import numpy as np, pandas as pd
 from numpy import array as nparr
 
+from astropy.timeseries import LombScargle
+
 import os, multiprocessing, pickle
+
+from trp.lcutils import p2p_rms
 
 nworkers = multiprocessing.cpu_count()
 
@@ -251,3 +256,135 @@ def rotation_periodsearch(times, fluxs, starid, outdir, t0=None,
         LOGINFO(f'Made {pklpath}')
 
     return d
+
+
+def calculate_lsp(times, fluxes, starid=None, outdir=None, nyquist_factor=2,
+                  samples_per_peak=10,
+                  n_best=5, period_min=0.1, period_max=27/2, cachedict=None,
+                  periodogram_method='astropyls', periodepsilon=0.1):
+
+    """Calculate the Lomb Scargle periodogram for the given times and fluxes.
+
+    Args:
+        times (numpy.ndarray): Array of time values.
+        fluxes (numpy.ndarray): Array of flux values.
+        starid (str): Identifier used for cacheing.
+        outdir (str): Path used for cacheing.
+        nyquist_factor (float, optional): Oversampling factor for the frequency
+            grid. Defaults to 2.
+        n_best (int, optional): Number of best periods to return. Defaults to 5.
+
+    Returns:
+        dict: A dictionary containing the periodogram results, peak period, and
+            top N best periods and values.
+    """
+
+    assert isinstance(starid, str)
+
+    pklpath = os.path.join(outdir, f"{starid}_rotation_periodsearch.pkl")
+    if os.path.exists(pklpath):
+        LOGINFO(f"Found {pklpath}, loading and continuing.")
+        with open(pklpath, 'rb') as f:
+            d = pickle.load(f)
+        return d
+
+    # Create a LombScargle object
+    ls = LombScargle(times, fluxes)
+
+    # Calculate the frequency grid
+    frequency, power = ls.autopower(nyquist_factor=nyquist_factor,
+                                    minimum_frequency=1/period_max,
+                                    maximum_frequency=1/period_min,
+                                    samples_per_peak=samples_per_peak)
+    periods = 1 / frequency
+
+    # Find the index of the peak power
+    peak_index = np.argmax(power)
+
+    # Calculate the peak period
+    peak_period = periods[peak_index]
+    peak_frequency = frequency[peak_index]
+
+    # Find the indices of the top N best periods
+    best_indices = np.argsort(power)[-n_best:][::-1]
+
+    # Initialize arrays to store the best periods and values
+    best_periods = []
+    best_values = []
+
+    # Sort the indices based on the power values in descending order
+    sorted_indices = np.argsort(power)[::-1]
+
+    # Iterate over the sorted indices
+    for index in sorted_indices:
+        current_period = 1 / frequency[index]
+        current_value = power[index]
+
+        # Check if the current period is sufficiently different from the
+        # existing best periods
+        if not any(
+            np.abs(current_period - period) / period < periodepsilon
+            for period in best_periods
+        ):
+            best_periods.append(current_period)
+            best_values.append(current_value)
+
+        # Break the loop if we have found the desired number of best periods
+        if len(best_periods) == n_best:
+            break
+
+    # Estimate the noise in the light curve using p2p_rms
+    p2p_noise = p2p_rms(fluxes)
+
+    # Evaluate the best-fit sinusoid using the peak period
+    best_fit_sinusoid = ls.model(times, peak_frequency)
+
+    # Calculate the model parameters using the peak frequency
+    theta = ls.model_parameters(peak_frequency)
+    amplitude = theta[1]
+    a_90_10_model = (
+        np.nanpercentile(best_fit_sinusoid, 90) -
+        np.nanpercentile(best_fit_sinusoid, 10)
+    )
+
+    # Calculate the chi^2 and reduced chi^2
+    residuals = fluxes - best_fit_sinusoid
+    chi2 = np.sum((residuals / p2p_noise)**2)
+    n_points = len(times)
+    n_dof = n_points - 2  # Number of dof (assuming a sinusoid with 2 parameters)
+    reduced_chi2 = chi2 / n_dof
+
+    # Create a dictionary to store the results
+    # Store the frequency grid and power in a dictionary
+    lsp = {
+        'times':times, 'fluxs': fluxes,
+        'periods': periods, 'power': power, 'bestlspval': np.nanmax(power),
+        'nbestperiods': best_periods, 'nbestlspvals': best_values
+    }
+
+    results = {
+        'lsp': lsp,
+        'period': peak_period,
+        'lspval': np.nanmax(power),
+        'amplitude': amplitude,
+        'a_90_10_model': a_90_10_model,
+        't0': np.nanmin(times),
+        'outdir': outdir,
+        'periodogram_method': periodogram_method,
+        'p2p_noise': p2p_noise,
+        'best_fit_sinusoid': best_fit_sinusoid,
+        'chi2': chi2,
+        'reduced_chi2': reduced_chi2,
+        'n_points': n_points,
+        'n_dof': n_dof
+    }
+
+    if cachedict is not None:
+        for k,v in cachedict.items():
+            results[k] = v
+
+    with open(pklpath, 'wb') as f:
+        pickle.dump(results, f)
+        LOGINFO(f'Made {pklpath}')
+
+    return results
