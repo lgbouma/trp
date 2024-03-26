@@ -71,7 +71,7 @@ def run_trp(sample_id):
     write_astrobase_pngs = 0
 
     lcpipeline = 'qlp' # "qlp" or "spoc2min"
-    periodogram_method = 'ls'
+    periodogram_method = 'astropyls'
     ###############
     # end options #
     ###############
@@ -94,7 +94,7 @@ def run_trp(sample_id):
 
 
 def find_rotperiod(ticid, sample_id, forcepdf=0, lcpipeline='qlp',
-                   periodogram_method='ls', write_astrobase_pngs=0):
+                   periodogram_method='astropyls', write_astrobase_pngs=0):
     """
     This pipeline takes a light curve (SPOC 2-minute or QLP), remove non-zero
     quality flags, and median-normalizes.  It then bins to a 30 minute cadence,
