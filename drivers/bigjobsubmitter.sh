@@ -3,7 +3,8 @@
 # Purpose:
 #    Queue jobs on OSG in a given volume slice, up to the 10k job max.
 # Usage:
-#   `./bigjobsubmitter.sh 0 100` (to submit trp chunks from 0 to 100pc)
+#   `./bigjobsubmitter.sh 0 200 &> submitter.log &`
+#   (to go from 0 to 200 parsecs)
 
 # Check if the required arguments are provided
 if [ $# -ne 2 ]; then

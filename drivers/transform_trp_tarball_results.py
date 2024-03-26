@@ -58,20 +58,24 @@ def build_pipeline_dataframe(tarballdir, do_tarball_extraction=1):
     logpaths = np.sort(glob(join(tarballdir, "srv", "joboutput*", "*log")))
 
     outdir = os.path.dirname(tarballdir)
-    outcsvpath = join(outdir, "0to150pc_quicklook_results.csv")
-    trimoutcsvpath = join(outdir, "0to150pc_quicklook_results_trimmed.csv")
+    outcsvpath = join(outdir, "0to200pc_quicklook_results.csv")
+    trimoutcsvpath = join(outdir, "0to200pc_quicklook_results_trimmed.csv")
 
     if not os.path.exists(trimoutcsvpath):
         colnames = (
             'lcpath,ticid,starid,sector,cadence_sec,periodogram_method,'
-            'period,bestlspval,t0,nbestperiods,nbestlspvals,exitcode'.split(",")
+            'period,a_90_10_model,bestlspval,reduced_chi2,t0,nbestperiods,'
+            'nbestlspvals,exitcode'.split(",")
         )
 
         df = pu.logpaths_to_csv(logpaths, outcsvpath, colnames=colnames)
         df.to_csv(outcsvpath, index=False)
         LOGINFO(f"Wrote {outcsvpath}")
 
-        selcols = 'ticid,period,bestlspval,sector,exitcode'.split(",")
+        selcols = (
+            'ticid,period,bestlspval,a_90_10_model,reduced_chi2,'
+            'sector,exitcode'.split(",")
+        )
         sdf = df[selcols]
         sdf.to_csv(trimoutcsvpath, index=False)
         LOGINFO(f"Wrote {trimoutcsvpath}")
@@ -92,13 +96,12 @@ if __name__ == "__main__":
     ##########################################
     # USER OPTIONS HERE #
     tarballdir = '/Users/luke/local/trp_RESULTS/trp_RESULTS/RESULTS'
-    do_tarball_extraction = 0
+    do_tarball_extraction = 1
     trimoutcsvpath = join(
         os.path.dirname(tarballdir),
-        "0to150pc_quicklook_results_trimmed.csv"
+        "0to200pc_quicklook_results_trimmed.csv"
     )
     ##########################################
-
 
     if not os.path.exists(trimoutcsvpath):
         build_pipeline_dataframe(
@@ -121,7 +124,7 @@ if __name__ == "__main__":
     mdf['z'] = z
 
     suppcsvpath = join(os.path.dirname(tarballdir),
-                       "0to150pc_quicklook_results_trimmed_supp.csv")
+                       "0to200pc_quicklook_results_trimmed_supp.csv")
     mdf.to_csv(suppcsvpath, index=False)
     print(f"Wrote {suppcsvpath}")
 
@@ -129,7 +132,7 @@ if __name__ == "__main__":
     mdf = mdf.drop_duplicates(subset='ticid', keep='first')
 
     suppcsvpath = join(os.path.dirname(tarballdir),
-                       "0to150pc_quicklook_results_trimmed_supp_nodup.csv")
+                       "0to200pc_quicklook_results_trimmed_supp_nodup.csv")
     mdf.to_csv(suppcsvpath, index=False)
     print(f"Wrote {suppcsvpath}")
 
