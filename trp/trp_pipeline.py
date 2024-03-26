@@ -71,7 +71,8 @@ def run_trp(sample_id):
     write_astrobase_pngs = 0
 
     lcpipeline = 'qlp' # "qlp" or "spoc2min"
-    periodogram_method = 'astropyls'
+    periodogram_method = 'astropyls' # ... is the only fully-implemented option
+    cache_periodogram_pkls = 0
     ###############
     # end options #
     ###############
@@ -87,14 +88,16 @@ def run_trp(sample_id):
         find_rotperiod(
             ticid, sample_id, forcepdf=forcepdf, lcpipeline=lcpipeline,
             periodogram_method=periodogram_method,
-            write_astrobase_pngs=write_astrobase_pngs
+            write_astrobase_pngs=write_astrobase_pngs,
+            cache_periodogram_pkls=cache_periodogram_pkls
         )
 
     LOGINFO("Finished 🎉🎉🎉")
 
 
 def find_rotperiod(ticid, sample_id, forcepdf=0, lcpipeline='qlp',
-                   periodogram_method='astropyls', write_astrobase_pngs=0):
+                   periodogram_method='astropyls', write_astrobase_pngs=0,
+                   cache_periodogram_pkls=1):
     """
     This pipeline takes a light curve (SPOC 2-minute or QLP), remove non-zero
     quality flags, and median-normalizes.  It then bins to a 30 minute cadence,
@@ -119,6 +122,9 @@ def find_rotperiod(ticid, sample_id, forcepdf=0, lcpipeline='qlp',
         a 3x3 grid showing the light curve, periodogram, and phased versions of
         the light curve.  Good for debugging; not good enough for assessing
         what is really happening.
+
+        cache_periodogram_pkls (bool): save pickle files with detailed
+        periodogram info.
 
     exit code definitions:
 

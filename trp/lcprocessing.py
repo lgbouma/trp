@@ -261,8 +261,8 @@ def rotation_periodsearch(times, fluxs, starid, outdir, t0=None,
 def calculate_lsp(times, fluxes, starid=None, outdir=None, nyquist_factor=2,
                   samples_per_peak=10,
                   n_best=5, period_min=0.1, period_max=27/2, cachedict=None,
-                  periodogram_method='astropyls', periodepsilon=0.1):
-
+                  periodogram_method='astropyls', periodepsilon=0.1,
+                  cache_periodogram_pkls=1):
     """Calculate the Lomb Scargle periodogram for the given times and fluxes.
 
     Args:
@@ -383,8 +383,9 @@ def calculate_lsp(times, fluxes, starid=None, outdir=None, nyquist_factor=2,
         for k,v in cachedict.items():
             results[k] = v
 
-    with open(pklpath, 'wb') as f:
-        pickle.dump(results, f)
-        LOGINFO(f'Made {pklpath}')
+    if cache_periodogram_pkls:
+        with open(pklpath, 'wb') as f:
+            pickle.dump(results, f)
+            LOGINFO(f'Made {pklpath}')
 
     return results
