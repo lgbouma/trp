@@ -20,6 +20,9 @@ if [ $start_index -lt 0 ] || [ $end_index -le $start_index ]; then
   exit 1
 fi
 
+# Get the generic username
+username=$(whoami)
+
 # Iterate over the specified range
 for ((i=start_index; i<end_index; i+=5)); do
   start=$i
@@ -27,8 +30,8 @@ for ((i=start_index; i<end_index; i+=5)); do
   volumeslice="${start}to${end}pc"
   
   # Check the number of jobs submitted by the user
-  job_count=$(condor_q | grep "Total for ekul" | awk '{print $4}')
-  echo `condor_q | grep "Total for ekul"`
+  job_count=$(condor_q | grep "Total for $username" | awk '{print $4}')
+  echo `condor_q | grep "Total for $username"`
   echo $job_count
   
   if [ -z "$job_count" ]; then
