@@ -43,7 +43,7 @@ from trp import pipeline_utils as pu
 
 from trp.starlists import get_ticids
 from trp.getters import get_lcpaths_fromlightkurve_given_ticid
-from trp.lcprocessing import rotation_periodsearch
+from trp.lcprocessing import rotation_periodsearch, calculate_lsp
 
 from complexrotators.lcprocessing import prepare_cpv_light_curve
 from astrobase.lcmath import time_bin_magseries
@@ -113,7 +113,7 @@ def find_rotperiod(ticid, sample_id, forcepdf=0, lcpipeline='qlp',
 
         lcpipeline (str): "qlp" or "spoc2min"
 
-        periodogram_method (str): "ls" or "pdm"
+        periodogram_method (str): "ls", "astropyls", or "pdm"
 
         write_astrobase_pngs (bool): whther to generate the astrobase checkplot pngs,
         a 3x3 grid showing the light curve, periodogram, and phased versions of
@@ -242,12 +242,18 @@ def find_rotperiod(ticid, sample_id, forcepdf=0, lcpipeline='qlp',
             'y_obs': y_obs
         }
         try:
-            d = rotation_periodsearch(
-                btime, bflux, starid, cachedir, t0='binmin',
-                periodogram_method=periodogram_method, do_finetune=0,
-                write_pngs=write_astrobase_pngs,
-                nworkers=nworkers, cachedict=cachedict
-            )
+            if periodogram_method == 'astropyls':
+                d = calculate_lsp(
+                    btime, bflux, starid, cachedir, cachedict=cachedict
+                )
+            if periodogram_method == 'ls':
+                raise NotImplementedError('will break amplitudes below')
+                d = rotation_periodsearch(
+                    btime, bflux, starid, cachedir, t0='binmin',
+                    periodogram_method=periodogram_method, do_finetune=0,
+                    write_pngs=write_astrobase_pngs,
+                    nworkers=nworkers, cachedict=cachedict
+                )
         except OSError as e:
             LOGWARNING(f"{starid}: Failed to allocate memory ({e}).")
             exitcode = {'exitcode': 3}
@@ -260,6 +266,9 @@ def find_rotperiod(ticid, sample_id, forcepdf=0, lcpipeline='qlp',
             'cadence_sec': cadence_sec,
             'periodogram_method': periodogram_method,
             'period': d['period'], # default lomb scargle period
+            'amplitude': np.abs(d['amplitude']),
+            'a_90_10_model': d['a_90_10_model'],
+            'reduced_chi2': d['reduced_chi2'],
             'bestlspval': d['lsp']['bestlspval'],
             't0': d['t0'],
             'nbestperiods': d['lsp']['nbestperiods'],
