@@ -7,9 +7,10 @@
 # well.  Output is returned as tarballs to $DATA/RESULTS.
 #
 # Usage:
-#  Auto: Run `./jobsubmitter.sh 0 100` (to submit job chunks from 0 to 100pc)
+#  Auto: Run `./bigjobsubmitter.sh 0 200` (chunks from 0 to 200pc)
 #
-#  Manual: update "XXtoYYpc" string.  Then `condor_submit condor_submit.sub`.
+#  Manual: Run `condor_submit "volumeslice=0to5" condor_submit.sub`, updating
+#      the relevant string.
 #  
 #
 universe    = vanilla
