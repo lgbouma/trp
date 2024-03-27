@@ -140,7 +140,7 @@ def logpaths_to_csv(
     for ix, chunked_logpath_list in enumerate(chunked_logpaths):
         rows = []
         for logpath in chunked_logpath_list:
-            row = status_to_dict(logpath)
+            row = status_to_dict(logpath, colnames=colnames)
             rows.append(row)
         df = pd.DataFrame(rows)
         outpath = join(cachedir, f"chunk_{str(ix).zfill(8)}.csv")
