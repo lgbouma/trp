@@ -115,7 +115,7 @@ if __name__ == "__main__":
 
     gcsvpath = '/Users/luke/local/QLP/QLP_s1s55_X_GDR2_parallax_gt_2.csv'
     gdf = pd.read_csv(gcsvpath)
-    selcols = 'ra,dec,parallax,pmra,pmdec,M_G,bp_rp,ticid'.split(",")
+    selcols = 'dr2_source_id,ra,dec,parallax,pmra,pmdec,M_G,bp_rp,ticid'.split(",")
     gdf = gdf[selcols]
 
     mdf = df.merge(gdf, on='ticid', how='inner')
