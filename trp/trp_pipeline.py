@@ -47,6 +47,7 @@ from trp.lcprocessing import rotation_periodsearch, calculate_lsp
 
 from complexrotators.lcprocessing import prepare_cpv_light_curve
 from astrobase.lcmath import time_bin_magseries
+from astropy.io import fits
 
 #############
 
@@ -166,7 +167,8 @@ def find_rotperiod(ticid, sample_id, forcepdf=0, lcpipeline='qlp',
     if forcepdf:
         MINIMUM_EXITCODE = -1
     if minexitcode >= MINIMUM_EXITCODE:
-        LOGINFO(f"TIC{ticid}: found log for {ticid} with exitcode {minexitcode}. skip.")
+        LOGINFO(f"TIC{ticid}: found log {cand_logpath} for {ticid} with "
+                f"exitcode {minexitcode}. skip.")
         return 0
 
     #
@@ -216,6 +218,12 @@ def find_rotperiod(ticid, sample_id, forcepdf=0, lcpipeline='qlp',
                 LOGINFO(f"{lcpbase}: found exitcode {exitcode}. skip.")
                 if not forcepdf:
                     continue
+
+        with fits.open(lcpath) as hdulist:
+            hdr = hdulist[0].header
+        selcols = "RA_OBJ,DEC_OBJ,TESSMAG,RADIUS,LOGG,MASS,TEFF".split(",")
+        starinfod = {k:hdr[k] for k in selcols}
+        pu.save_status(logpath, 'starinfo', starinfod)
 
         (time, flux, qual, x_obs, y_obs, _, _, _, cadence_sec,
          sector, starid) = prepare_rot_light_curve(
