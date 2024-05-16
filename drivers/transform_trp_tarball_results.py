@@ -65,7 +65,7 @@ def build_pipeline_dataframe(tarballdir, do_tarball_extraction=1):
         colnames = (
             'lcpath,ticid,starid,sector,cadence_sec,periodogram_method,'
             'period,a_90_10_model,bestlspval,reduced_chi2,t0,nbestperiods,'
-            'nbestlspvals,exitcode'.split(",")
+            'nbestlspvals,exitcode,tessmag,teff'.split(",")
         )
 
         df = pu.logpaths_to_csv(logpaths, outcsvpath, colnames=colnames)
@@ -75,7 +75,7 @@ def build_pipeline_dataframe(tarballdir, do_tarball_extraction=1):
 
         selcols = (
             'ticid,period,bestlspval,a_90_10_model,reduced_chi2,'
-            'sector,log10_ampl'.split(",")
+            'sector,log10_ampl,tessmag,teff'.split(",")
         )
         sdf = df[selcols]
         sdf.to_csv(trimoutcsvpath, index=False)
@@ -88,8 +88,6 @@ def build_pipeline_dataframe(tarballdir, do_tarball_extraction=1):
     LOGINFO("Exitcode counts:")
     for exitcode, count in exitcode_counts.items():
         LOGINFO(f"Exitcode {exitcode}: {count} entries")
-
-
 
 
 if __name__ == "__main__":
@@ -112,6 +110,8 @@ if __name__ == "__main__":
     df = pd.read_csv(trimoutcsvpath)
     if 'log10_ampl' not in df.columns:
         df['log10_ampl'] = np.log10(df['a_90_10_model'])
+    if 'log10_period' not in df.columns:
+        df['log10_period'] = np.log10(df['period'])
 
     gcsvpath = '/Users/luke/local/QLP/QLP_s1s55_X_GDR2_parallax_gt_2.csv'
     gdf = pd.read_csv(gcsvpath)
