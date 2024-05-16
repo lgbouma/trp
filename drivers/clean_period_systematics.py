@@ -103,7 +103,7 @@ def main():
     df = df[~pd.isnull(df.period)]
     df['sector'] = df.sector.astype(int)
 
-    period_bin_edges = np.logspace(np.log10(0.95), np.log10(13.5), 200)
+    period_bin_edges = np.logspace(np.log10(0.85), np.log10(13.5), 200)
     lsp_bin_edges = np.logspace(np.log10(1e-3), np.log10(1), 100)
 
     selected_rows = create_histograms(df, period_bin_edges, lsp_bin_edges, output_dir)
@@ -137,10 +137,12 @@ def main():
     df = deepcopy(selected_df)
     if 'log10_ampl' not in df.columns:
         df['log10_ampl'] = np.log10(df['a_90_10_model'])
+    if 'log10_period' not in df.columns:
+        df['log10_period'] = np.log10(df['period'])
 
     gcsvpath = '/Users/luke/local/QLP/QLP_s1s55_X_GDR2_parallax_gt_2.csv'
     gdf = pd.read_csv(gcsvpath)
-    selcols = 'dr2_source_id,ra,dec,parallax,pmra,pmdec,M_G,bp_rp,ticid'.split(",")
+    selcols = 'dr2_source_id,ra,dec,parallax,pmra,pmdec,M_G,phot_g_mean_mag,bp_rp,ticid'.split(",")
     gdf = gdf[selcols]
 
     mdf = df.merge(gdf, on='ticid', how='inner')
