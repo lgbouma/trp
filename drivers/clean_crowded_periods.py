@@ -79,6 +79,7 @@ sel = (
     &
     ( np.sqrt(df.x**2 + df.y**2 + df.z**2) < 250 )
     &
+    # nonphysical, a few hundred cases
     ( ~( (df.log10_ampl > -0.25) & (df.period > 7))  )
 )
 sdf = df[sel]
@@ -90,5 +91,3 @@ sdf.to_csv(suppcsvpath, index=False)
 print(f"Wrote {suppcsvpath}")
 
 print(sdf.ticid.unique().size)
-
-import IPython; IPython.embed()
