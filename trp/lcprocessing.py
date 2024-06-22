@@ -260,9 +260,9 @@ def rotation_periodsearch(times, fluxs, starid, outdir, t0=None,
 
 def calculate_lsp(times, fluxes, starid=None, outdir=None, nyquist_factor=2,
                   samples_per_peak=10,
-                  n_best=5, period_min=0.1, period_max=27/2, cachedict=None,
-                  periodogram_method='astropyls', periodepsilon=0.1,
-                  cache_periodogram_pkls=1):
+                  n_best=5, period_min=0.1, period_max=27/2, N_freq=int(1e6),
+                  cachedict=None, periodogram_method='astropyls',
+                  periodepsilon=0.1, cache_periodogram_pkls=1):
     """Calculate the Lomb Scargle periodogram for the given times and fluxes.
 
     Args:
@@ -292,11 +292,13 @@ def calculate_lsp(times, fluxes, starid=None, outdir=None, nyquist_factor=2,
     ls = LombScargle(times, fluxes)
 
     # Calculate the frequency grid
-    frequency, power = ls.autopower(nyquist_factor=nyquist_factor,
-                                    minimum_frequency=1/period_max,
-                                    maximum_frequency=1/period_min,
-                                    samples_per_peak=samples_per_peak)
+    minimum_frequency = 1/period_max
+    maximum_frequency = 1/period_min
+    frequency = np.linspace(minimum_frequency, maximum_frequency, N_freq)
     periods = 1 / frequency
+
+    # Compute the periodogram
+    power = ls.power(frequency)
 
     # Find the index of the peak power
     peak_index = np.argmax(power)
