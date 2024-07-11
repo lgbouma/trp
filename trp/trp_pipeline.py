@@ -79,7 +79,7 @@ def run_trp(sample_id):
     # begin options #
     #################
     forcepdf = 0 # if yes, perhaps also have "LOCALDEBUG" set true..
-    write_vetplot = 1
+    write_vetplot = 0
 
     lcpipeline = 'qlp' # "qlp" or "spoc2min"
     periodogram_method = 'astropyls' # ... is the only fully-implemented option
