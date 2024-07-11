@@ -364,6 +364,12 @@ def calculate_lsp(times, fluxes, starid=None, outdir=None, nyquist_factor=2,
         'nbestperiods': best_periods, 'nbestlspvals': best_values
     }
 
+    baseline = np.nanmax(times) - np.nanmin(times)
+
+    snr_metric = (a_90_10_model / p2p_noise) * np.sqrt(
+        baseline / peak_period
+    )
+
     results = {
         'lsp': lsp,
         'period': peak_period,
@@ -378,7 +384,9 @@ def calculate_lsp(times, fluxes, starid=None, outdir=None, nyquist_factor=2,
         'chi2': chi2,
         'reduced_chi2': reduced_chi2,
         'n_points': n_points,
-        'n_dof': n_dof
+        'n_dof': n_dof,
+        'baseline': baseline,
+        'snr_metric': snr_metric
     }
 
     if cachedict is not None:

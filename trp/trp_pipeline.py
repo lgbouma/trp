@@ -52,6 +52,13 @@ from complexrotators.lcprocessing import prepare_cpv_light_curve
 from astrobase.lcmath import time_bin_magseries
 from astropy.io import fits
 
+AESTHETIC_IMPORT_WORKS = 0
+try:
+    from aesthetic.plot import savefig, format_ax, set_style
+    AESTHETIC_IMPORT_WORKS = 1
+except:
+    LOGINFO('Failed to import aesthetic; skipping.')
+
 #############
 
 def run_trp(sample_id):
@@ -72,7 +79,7 @@ def run_trp(sample_id):
     # begin options #
     #################
     forcepdf = 0 # if yes, perhaps also have "LOCALDEBUG" set true..
-    write_astrobase_pngs = 0
+    write_vetplot = 1
 
     lcpipeline = 'qlp' # "qlp" or "spoc2min"
     periodogram_method = 'astropyls' # ... is the only fully-implemented option
@@ -94,7 +101,7 @@ def run_trp(sample_id):
         find_rotperiod(
             ticid, sample_id, forcepdf=forcepdf, lcpipeline=lcpipeline,
             periodogram_method=periodogram_method,
-            write_astrobase_pngs=write_astrobase_pngs,
+            write_vetplot=write_vetplot,
             cache_periodogram_pkls=cache_periodogram_pkls
         )
 
@@ -122,7 +129,7 @@ def parse_sample_id(sample_id):
 
 
 def find_rotperiod(ticid, sample_id, forcepdf=0, lcpipeline='qlp',
-                   periodogram_method='astropyls', write_astrobase_pngs=0,
+                   periodogram_method='astropyls', write_vetplot=0,
                    cache_periodogram_pkls=1):
     """
     This pipeline takes a light curve (SPOC 2-minute or QLP), remove non-zero
@@ -137,17 +144,15 @@ def find_rotperiod(ticid, sample_id, forcepdf=0, lcpipeline='qlp',
 
         sample_id (str): e.g., "30to50pc_mkdwarf" (used for cacheing)
 
-        forcepdf (bool): if true, will require the pdf plot to be made, even if the usual
-            exit code criteria were not met.
+        forcepdf (bool): if true, will require the pdf plot to be made, even if
+            the usual exit code criteria were not met.
 
         lcpipeline (str): "qlp" or "spoc2min"
 
         periodogram_method (str): "ls", "astropyls", or "pdm"
 
-        write_astrobase_pngs (bool): whther to generate the astrobase checkplot pngs,
-        a 3x3 grid showing the light curve, periodogram, and phased versions of
-        the light curve.  Good for debugging; not good enough for assessing
-        what is really happening.
+        write_vetplot (bool): whether to generate a PNG that can be used to
+            vet the validity for a proposed rotation period.
 
         cache_periodogram_pkls (bool): save pickle files with detailed
         periodogram info.
@@ -162,6 +167,10 @@ def find_rotperiod(ticid, sample_id, forcepdf=0, lcpipeline='qlp',
 
         exitcode 3: failed to allocate memory
     """
+
+    if write_vetplot:
+        msg = 'You need to install https://github.com/lgbouma/aesthetic'
+        assert AESTHETIC_IMPORT_WORKS, msg
 
     #
     # set up / parse log files
@@ -290,7 +299,7 @@ def find_rotperiod(ticid, sample_id, forcepdf=0, lcpipeline='qlp',
                 d = rotation_periodsearch(
                     btime, bflux, starid, cachedir, t0='binmin',
                     periodogram_method=periodogram_method, do_finetune=0,
-                    write_pngs=write_astrobase_pngs,
+                    write_pngs=0,
                     nworkers=nworkers, cachedict=cachedict
                 )
         except OSError as e:
@@ -311,7 +320,9 @@ def find_rotperiod(ticid, sample_id, forcepdf=0, lcpipeline='qlp',
             'bestlspval': d['lsp']['bestlspval'],
             't0': d['t0'],
             'nbestperiods': d['lsp']['nbestperiods'],
-            'nbestlspvals': d['lsp']['nbestlspvals']
+            'nbestlspvals': d['lsp']['nbestlspvals'],
+            'p2p_rms': d['p2p_noise'],
+            'snr_metric': d['snr_metric'],
         }
         pu.save_status(logpath, f'rotation_periodsearch_{periodogram_method}_results', psr)
         LOGINFO(f"Updated {logpath} with "
@@ -321,21 +332,16 @@ def find_rotperiod(ticid, sample_id, forcepdf=0, lcpipeline='qlp',
         exitcode = {'exitcode': 0}
         pu.save_status(logpath, 'exitcode', exitcode)
 
-        ##########################################
-
-        # NOTE: may wish to add option to generate a vetting plot in the
-        # future; for now, omit and just calculate periodograms.
-
-        # outpath = join(cachedir, f'{starid}_cpvvetter.pdf')
-        # if not os.path.exists(outpath):
-        #     plot_cpvvetter(
-        #         outpath, lcpath, starid, periodsearch_result=d,
-        #         findpeaks_result=r, lcpipeline=lcpipeline
-        #     )
-        # else:
-        #     LOGINFO(f"Found {outpath}")
-
-        ##########################################
+        if write_vetplot:
+            outpath = join(cachedir, f'{starid}_rotvetter.pdf')
+            if not os.path.exists(outpath):
+                from trp.plotting import plot_rotvetter
+                plot_rotvetter(
+                    outpath, lcpath, starid, periodsearch_result=d,
+                    lcpipeline=lcpipeline
+                )
+            else:
+                LOGINFO(f"Found {outpath}")
 
 
 def prepare_rot_light_curve(lcpath, cachedir, lcpipeline='qlp'):
