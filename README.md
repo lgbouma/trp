@@ -24,8 +24,12 @@ lightkurve==2.4.0
 astrobase==0.5.3
 ```
 which can be pip installed through something like `pip install -r
-requirements.txt`.  A final dependency is the setup.py installed `cpv` package
-from https://github.com/lgbouma/cpv.
+requirements.txt`.  A final required dependency is the setup.py installed `cpv`
+package from https://github.com/lgbouma/cpv.
+
+If you plan to generate pre-cooked plots, there are two extra dependencies:
+https://github.com/lgbouma/aesthetic
+https://github.com/lgbouma/cdips
 
 
 ### Usage
