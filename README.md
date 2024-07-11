@@ -32,7 +32,8 @@ from https://github.com/lgbouma/cpv.
 
 While a range of usage modes are available, a common pattern given a smaller
 number of stars with known TIC8 identifiers would be to make a CSV file at
-/data/targetlists, similar to `example_starlist.csv`.  Then, you can run
+/trp/data/targetlists, similar to `example_starlist.csv`.  Then, from `trp/drivers`
+you can run
 
 `python run_trp.py example_starlist.csv`
 
