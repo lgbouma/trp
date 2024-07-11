@@ -3,6 +3,9 @@ Contents:
     run_trp
     find_rotperiod
     prepare_rot_light_curve
+
+Minor helpers:
+    parse_sample_id
 """
 #############
 ## LOGGING ##
@@ -78,6 +81,8 @@ def run_trp(sample_id):
     # end options #
     ###############
 
+    sample_id = parse_sample_id(sample_id)
+
     ticids = get_ticids(sample_id, lcpipeline)
 
     if len(ticids) > 100 and forcepdf:
@@ -94,6 +99,26 @@ def run_trp(sample_id):
         )
 
     LOGINFO("Finished 🎉🎉🎉")
+
+
+def parse_sample_id(sample_id):
+    """
+    If a CSV file of TICIDs is given, ensure formatting is correct.
+    """
+
+    if sample_id.endswith(".csv"):
+        sample_id = sample_id.replace(".", "_")
+
+        from trp.paths import TARGETDIR
+        csvpath = join(TARGETDIR, sample_id.replace("_csv", ".csv"))
+
+        assert os.path.exists(csvpath), f"Could not find {csvpath}"
+
+        msg = f"'ticid' not found in the first line of {csvpath}"
+        with open(csvpath, 'r') as file:
+            assert 'ticid' in file.readline().strip().split(','), msg
+
+    return sample_id
 
 
 def find_rotperiod(ticid, sample_id, forcepdf=0, lcpipeline='qlp',

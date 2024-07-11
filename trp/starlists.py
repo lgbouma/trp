@@ -43,7 +43,16 @@ from trp.tar_utils import extract_tarball
 
 def get_ticids(sample_id, lcpipeline):
 
-    if sample_id == 'debug':
+    if sample_id.endswith("_csv"):
+        from trp.paths import TARGETDIR
+        csvpath = join(TARGETDIR, sample_id.replace("_csv", ".csv"))
+        df = pd.read_csv(csvpath)
+        ticids = list(df['ticid'].astype(str))
+
+        N_stars_to_search = len(ticids)
+        N_lcs_to_search = -1
+
+    elif sample_id == 'debug':
         ticids = [
             "15756231"
             #"402980664"
@@ -157,7 +166,3 @@ def get_ticids(sample_id, lcpipeline):
     LOGINFO(f"N_lcs_to_search = {N_lcs_to_search}...")
 
     return ticids
-
-
-
-

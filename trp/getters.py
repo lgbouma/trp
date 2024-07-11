@@ -70,7 +70,7 @@ def get_lcpaths_fromlightkurve_given_ticid(
     else:
         ticid_str = f"TIC {ticid}"
 
-    LOGINFO(f"Beginning search for {ticid_str}...")
+    LOGINFO(f"Beginning lightkurve search for {ticid_str}...")
     ix = 0
     lcset = None
     while ix < max_iter and lcset is None:
