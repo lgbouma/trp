@@ -169,9 +169,23 @@ def plot_rotvetter(
     bd = time_bin_magseries(d['times'], d['fluxs'], binsize=7200, minbinelems=1)
     yoffset = np.nanmean(bd['binnedmags'])
     ax.scatter(d['times'], 1e2*(d['fluxs']-yoffset),
-               c='lightgray', s=1, zorder=1)
+               c='lightgray', s=3, zorder=1)
     ax.scatter(bd['binnedtimes'], 1e2*(bd['binnedmags']-yoffset),
                c='k', s=0.4, zorder=2, rasterized=True)
+
+    yval = np.nanpercentile(1e2*(bd['binnedmags']-yoffset), 95)
+
+    _time, _flux = bd['binnedtimes'], 1e2*(bd['binnedmags']-yoffset)
+    x0 = _time[np.argmin(np.abs(_flux - np.nanpercentile(_flux, 1)))]
+    x1 = x0 + d['period']
+    xval = (x1 - x0)/2
+    xerr = x1 - xval
+    #ax.hlines(yval, ymin, ymax, colors='red', alpha=1,
+    #          linestyles='-', zorder=5, linewidths=2)
+    ax.errorbar(xval, yval, xerr=xerr, alpha=1,
+                marker='.', elinewidth=1, capsize=1, lw=0, mew=0.1,
+                color='red', markersize=0, zorder=5)
+
     ylim = get_ylimguess(1e2*(bd['binnedmags']-np.nanmean(bd['binnedmags'])))
     ax.update({'xlabel': 'Time [BTJD]', 'ylabel': 'SAP Flux [%]', 'ylim': ylim})
 
@@ -209,11 +223,16 @@ def plot_rotvetter(
     ylim = get_ylimguess(1e2*(bd['binnedmags']-np.nanmean(bd['binnedmags'])))
     plot_phased_light_curve(
         d['times'], d['fluxs'], d['t0'], d['period'], None, ylim=ylim,
-        xlim=[-0.6,0.6], binsize_phase=0.005, BINMS=2, titlestr=None,
-        showtext=f'{d["period"]:.1f} d', showtitle=False, figsize=None, c0='darkgray',
-        alpha0=0.3, c1='k', alpha1=1, phasewrap=True, plotnotscatter=False,
+        xlim=[-0.6,0.6], binsize_phase=0.01, BINMS=4, titlestr=None,
+        showtext=False, showtitle=False, figsize=None, c0='darkgray',
+        alpha0=0.7, c1='k', alpha1=1, phasewrap=True, plotnotscatter=False,
         fig=None, ax=ax, savethefigure=False, findpeaks_result=None,
         showxticklabels=True
+    )
+    txt = f'{d["period"]:.1f} d'
+    ax.text(
+        txt, 0.95, 0.05, transform=ax.transAxes, fontsize='medium', ha='right',
+        va='bottom'
     )
     ax.set_ylabel("$\Delta$ Flux [%]")
     ax.set_xticklabels(['-0.5', '', '0', '', '0.5'])
@@ -231,7 +250,8 @@ def plot_rotvetter(
                c='lightgray', s=1, zorder=1)
     ax.scatter(bd['binnedtimes'], bd['binnedmags'],
                c='k', s=0.4, zorder=2, rasterized=True)
-    ax.update({'xlabel': 'Time [BTJD]', 'ylabel': 'BGV'})
+    ylim = get_ylimguess(bd['binnedmags'])
+    ax.update({'xlabel': 'Time [BTJD]', 'ylabel': 'BGV', 'ylim': ylim})
 
     # join subplots
 
