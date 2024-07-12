@@ -33,7 +33,7 @@ output        = logs/job_$(sample_id)_$(Cluster)_$(Process).out
 
 request_cpus    = 1 
 request_memory  = 2GB
-request_disk    = 2GB
+request_disk    = 20GB
 
 #queue sample_id from sampleids/DEBUG.LIST
 queue sample_id from sampleids/$(volumeslice).sampleids
