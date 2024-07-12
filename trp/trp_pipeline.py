@@ -92,14 +92,14 @@ def run_trp(sample_id):
 
     ticids = get_ticids(sample_id, lcpipeline)
 
-    if len(ticids) > 100 and forcepdf:
+    if len(ticids) > 100 and forcerun:
         raise NotImplementedError
 
     for ticid in ticids:
         LOGINFO(42*'-')
         LOGINFO(f"Beginning {ticid}...")
         find_rotperiod(
-            ticid, sample_id, forcepdf=forcepdf, lcpipeline=lcpipeline,
+            ticid, sample_id, forcerun=forcerun, lcpipeline=lcpipeline,
             periodogram_method=periodogram_method,
             write_vetplot=write_vetplot,
             cache_periodogram_pkls=cache_periodogram_pkls
@@ -128,7 +128,7 @@ def parse_sample_id(sample_id):
     return sample_id
 
 
-def find_rotperiod(ticid, sample_id, forcepdf=0, lcpipeline='qlp',
+def find_rotperiod(ticid, sample_id, forcerun=0, lcpipeline='qlp',
                    periodogram_method='astropyls', write_vetplot=0,
                    cache_periodogram_pkls=1):
     """
@@ -144,7 +144,7 @@ def find_rotperiod(ticid, sample_id, forcepdf=0, lcpipeline='qlp',
 
         sample_id (str): e.g., "30to50pc_mkdwarf" (used for cacheing)
 
-        forcepdf (bool): if true, will require the pdf plot to be made, even if
+        forcerun (bool): if true, will require the pipeline to be run, even if
             the usual exit code criteria were not met.
 
         lcpipeline (str): "qlp" or "spoc2min"
@@ -198,9 +198,9 @@ def find_rotperiod(ticid, sample_id, forcepdf=0, lcpipeline='qlp',
             minexitcode = np.nanmin(foundexitcodes)
 
     MINIMUM_EXITCODE = 0
-    if forcepdf:
+    if forcerun:
         MINIMUM_EXITCODE = -1
-    if minexitcode >= MINIMUM_EXITCODE:
+    if minexitcode >= MINIMUM_EXITCODE and not forcerun:
         LOGINFO(f"TIC{ticid}: found log {cand_logpath} for {ticid} with "
                 f"exitcode {minexitcode}. skip.")
         return 0
@@ -250,7 +250,7 @@ def find_rotperiod(ticid, sample_id, forcepdf=0, lcpipeline='qlp',
             exitcode = st['exitcode']['exitcode']
             if minexitcode >= MINIMUM_EXITCODE:
                 LOGINFO(f"{lcpbase}: found exitcode {exitcode}. skip.")
-                if not forcepdf:
+                if not forcerun:
                     continue
 
         with fits.open(lcpath) as hdulist:
