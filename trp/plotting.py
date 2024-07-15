@@ -9,7 +9,7 @@ from astrobase.lcmath import (
     phase_magseries, phase_bin_magseries, sigclip_magseries,
     find_lc_timegroups, phase_magseries_with_errs, time_bin_magseries
 )
-from astrobase.services.identifiers import tic_to_gaiadr2
+from astrobase.services.identifiers import tic_to_gaiadr2, tic_to_simbad
 from astrobase.lcmath import sigclip_magseries
 
 #############
@@ -169,21 +169,21 @@ def plot_rotvetter(
     bd = time_bin_magseries(d['times'], d['fluxs'], binsize=7200, minbinelems=1)
     yoffset = np.nanmean(bd['binnedmags'])
     ax.scatter(d['times'], 1e2*(d['fluxs']-yoffset),
-               c='lightgray', s=3, zorder=1)
+               c='lightgray', s=0.5, zorder=1)
     ax.scatter(bd['binnedtimes'], 1e2*(bd['binnedmags']-yoffset),
-               c='k', s=0.4, zorder=2, rasterized=True)
+               c='k', s=3, zorder=2, rasterized=True)
 
     yval = np.nanpercentile(1e2*(bd['binnedmags']-yoffset), 95)
 
     _time, _flux = bd['binnedtimes'], 1e2*(bd['binnedmags']-yoffset)
     x0 = _time[np.argmin(np.abs(_flux - np.nanpercentile(_flux, 1)))]
     x1 = x0 + d['period']
-    xval = (x1 - x0)/2
+    xval = x0 + (x1 - x0)/2
     xerr = x1 - xval
     #ax.hlines(yval, ymin, ymax, colors='red', alpha=1,
     #          linestyles='-', zorder=5, linewidths=2)
     ax.errorbar(xval, yval, xerr=xerr, alpha=1,
-                marker='.', elinewidth=1, capsize=1, lw=0, mew=0.1,
+                marker='.', elinewidth=1, capsize=2, lw=0, mew=0.1,
                 color='red', markersize=0, zorder=5)
 
     ylim = get_ylimguess(1e2*(bd['binnedmags']-np.nanmean(bd['binnedmags'])))
@@ -197,7 +197,7 @@ def plot_rotvetter(
     ax.plot(d['lsp']['periods'], d['lsp']['power'], c='k', lw=1)
     ax.scatter(d['lsp']['nbestperiods'][:5], d['lsp']['nbestlspvals'][:5],
                marker='v', s=5, linewidths=0, edgecolors='none',
-               color='k', alpha=0.5, zorder=1000)
+               color='C0', alpha=0.5, zorder=1000)
     ymin, ymax = ax.get_ylim()
     ax.vlines(d['period'], ymin, ymax, colors='darkgray', alpha=1,
               linestyles='-', zorder=-2, linewidths=1)
@@ -214,7 +214,7 @@ def plot_rotvetter(
     ax.vlines(nparr(P_harmonics)[sel], ymin, ymax, colors='darkgray',
               alpha=0.5, linestyles=':', zorder=-2, linewidths=0.5)
     ax.set_ylim([ymin, ymax])
-    ax.update({'xlabel': 'Period [d]', 'ylabel': 'LSP', 'xscale': 'log'})
+    ax.update({'xlabel': 'Period [d]', 'ylabel': 'LS Power', 'xscale': 'log'})
 
     #
     # phased LC
@@ -223,15 +223,15 @@ def plot_rotvetter(
     ylim = get_ylimguess(1e2*(bd['binnedmags']-np.nanmean(bd['binnedmags'])))
     plot_phased_light_curve(
         d['times'], d['fluxs'], d['t0'], d['period'], None, ylim=ylim,
-        xlim=[-0.6,0.6], binsize_phase=0.01, BINMS=4, titlestr=None,
+        xlim=[-0.6,0.6], binsize_phase=0.01, BINMS=7, titlestr=None,
         showtext=False, showtitle=False, figsize=None, c0='darkgray',
-        alpha0=0.7, c1='k', alpha1=1, phasewrap=True, plotnotscatter=False,
+        alpha0=0.9, c1='k', alpha1=1, phasewrap=True, plotnotscatter=False,
         fig=None, ax=ax, savethefigure=False, findpeaks_result=None,
         showxticklabels=True
     )
     txt = f'{d["period"]:.1f} d'
     ax.text(
-        txt, 0.95, 0.05, transform=ax.transAxes, fontsize='medium', ha='right',
+        0.95, 0.05, txt, transform=ax.transAxes, fontsize='medium', ha='right',
         va='bottom'
     )
     ax.set_ylabel("$\Delta$ Flux [%]")
@@ -246,12 +246,11 @@ def plot_rotvetter(
 
     bd = time_bin_magseries(d['times'], nbgv, binsize=7200, minbinelems=1)
     yoffset = np.nanmean(bd['binnedmags'])
-    ax.scatter(d['times'], nbgv,
-               c='lightgray', s=1, zorder=1)
+    ax.scatter(d['times'], nbgv, c='lightgray', s=0.5, zorder=1)
     ax.scatter(bd['binnedtimes'], bd['binnedmags'],
-               c='k', s=0.4, zorder=2, rasterized=True)
+               c='k', s=3, zorder=2, rasterized=True)
     ylim = get_ylimguess(bd['binnedmags'])
-    ax.update({'xlabel': 'Time [BTJD]', 'ylabel': 'BGV', 'ylim': ylim})
+    ax.update({'xlabel': 'Time [BTJD]', 'ylabel': 'BGV/med(BGV)', 'ylim': ylim})
 
     # join subplots
 
@@ -308,6 +307,7 @@ def plot_rotvetter(
 
     # gaia info
     dr2_source_id = tic_to_gaiadr2(ticid)
+    simbad_name = tic_to_simbad(ticid)
 
     runid = f"dr2_{dr2_source_id}"
 
@@ -353,6 +353,7 @@ def plot_rotvetter(
             nbhrstr += f"TIC {_ticid}: ΔT={tmag-hdr['TESSMAG']:.1f}\n"
 
     txt = (
+        f"{simbad_name}\n"
         f"TIC {ticid}\n"
         f"GDR2 {dr2_source_id}\n"
         f"SEC{sector}, CAM{cam}, CCD{ccd}\n"
