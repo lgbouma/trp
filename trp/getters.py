@@ -1,6 +1,7 @@
 """
 Contents:
     get_lcpaths_fromlightkurve_given_ticid
+    get_ephemeris_given_ticid
 """
 #############
 ## LOGGING ##
@@ -31,14 +32,17 @@ LOGEXCEPTION = LOGGER.exception
 #############
 ## IMPORTS ##
 #############
-import os, pickle
+import os, pickle, requests
 from os.path import join
 from glob import glob
 import numpy as np, pandas as pd
 import lightkurve as lk
 import time
+from io import StringIO
 
 from trp.paths import CACHEDIR
+
+from astroquery.ipac.nexsci.nasa_exoplanet_archive import NasaExoplanetArchive
 
 #############
 
@@ -113,3 +117,27 @@ def get_lcpaths_fromlightkurve_given_ticid(
     LOGINFO(f"Returning {len(lcpaths)} light curves for {ticid_str}...")
 
     return lcpaths
+
+
+def get_ephemeris_given_ticid(ticid: str) -> pd.DataFrame:
+
+    """
+    Retrieve epochs, periods, and durations for known transiting planets
+    for a given TIC identifier from the NASA Exoplanet Archive.
+
+    Args:
+        tic_id (str): The TIC identifier of the target system.
+
+    Returns:
+        pd.DataFrame: A DataFrame containing the epochs, periods, and durations
+                      of the transiting planets.
+    """
+    table = NasaExoplanetArchive.query_criteria(
+        table='pscomppars',
+        select="pl_tranmid, pl_orbper, pl_trandur",
+        where=f"tic_id = 'TIC {ticid}' AND tran_flag = 1"
+    )
+    df = table.to_pandas()
+    df.columns = ["Epoch", "Period", "Duration"]
+
+    return df
