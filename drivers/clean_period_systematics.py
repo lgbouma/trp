@@ -5,9 +5,9 @@ real astrophysical periods.
 
 For every sector, do the following:
 
-First, make a 2d histogram of the LSP peak value, bestlspval, versus
-the period.  Save this as a plot, where the sector number is part of the plot
-name.  Trim out any regions with N_COUNTS_CUTOFF of >= 5.
+First, make a 2d histogram of the LSP peak value, bestlspval, versus the
+period.  Save this as a plot, where the sector number is part of the plot name.
+Trim out any regions with N_COUNTS_CUTOFF of >= 5.
 
 Next, using the output from the histogram calculation, plot the 1d distribution
 of counts across all the bins.  Save this as a separate plot, similarly using
@@ -41,7 +41,7 @@ def create_histograms(df, period_bin_edges, lsp_bin_edges, output_dir,
     selected_rows = {}
 
     for sector in np.sort(sectors):
-        print(f"{sector}...")
+        print(f"{sector}/{np.max(sectors)}...")
         sector_df = df[df['sector'] == sector]
 
         # Create a 2D histogram of LSP peak value vs. period
@@ -140,22 +140,32 @@ def main():
     if 'log10_period' not in df.columns:
         df['log10_period'] = np.log10(df['period'])
 
-    gcsvpath = '/Users/luke/local/QLP/QLP_s1s55_X_GDR2_parallax_gt_2.csv'
+    gcsvpath = '/Users/luke/local/QLP/QLP_s1s55_X_GDR2_to_GDR3_parallax_gt_2.csv'
+    selcols = (
+        'dr3_source_id,dr2_source_id,ra,dec,parallax,pmra,pmdec,'+
+        'radial_velocity,M_G,bp_rp,non_single_star,ruwe,angular_distance,'+
+        'abs_magnitude_difference,ticid'
+    ).split(",")
     gdf = pd.read_csv(gcsvpath)
-    selcols = 'dr2_source_id,ra,dec,parallax,pmra,pmdec,M_G,phot_g_mean_mag,bp_rp,ticid'.split(",")
     gdf = gdf[selcols]
 
     mdf = df.merge(gdf, on='ticid', how='inner')
 
-    from sunnyhills.physicalpositions import calculate_XYZ_given_RADECPLX
-    x,y,z = calculate_XYZ_given_RADECPLX(mdf.ra, mdf.dec, mdf.parallax)
+    from earhart.physicalpositions import calculate_XYZUVW_given_RADECPLXPMRV
+    x,y,z,U,V,W = calculate_XYZUVW_given_RADECPLXPMRV(
+        mdf.ra, mdf.dec, mdf.parallax,
+        mdf.pmra, mdf.pmdec, mdf.radial_velocity
+    )
     x0 = -8122
     mdf['x'] = x-x0
     mdf['y'] = y
     mdf['z'] = z
+    mdf['U'] = U
+    mdf['V'] = V
+    mdf['W'] = W
 
     suppcsvpath = join(localdir,
-                       "0to500pc_quicklook_results_trimmed_periodcleaned_supp.csv")
+                       "0to500pc_quicklook_results_trimmed_periodcleaned_supp_dr3.csv")
     mdf.to_csv(suppcsvpath, index=False)
     print(f"Wrote {suppcsvpath}")
 
@@ -163,7 +173,7 @@ def main():
     mdf = mdf.drop_duplicates(subset='ticid', keep='first')
 
     suppcsvpath = join(localdir,
-                       "0to500pc_quicklook_results_trimmed_periodcleaned_supp_nodup.csv")
+                       "0to500pc_quicklook_results_trimmed_periodcleaned_supp_nodup_dr3.csv")
     mdf.to_csv(suppcsvpath, index=False)
     print(f"Wrote {suppcsvpath}")
     print(f"Total: {len(mdf)} (w/ LSPval cut, and P<12d, and no dups)")
