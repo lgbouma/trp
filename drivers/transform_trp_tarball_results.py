@@ -102,6 +102,7 @@ if __name__ == "__main__":
         os.path.dirname(tarballdir),
         "0to500pc_quicklook_results_trimmed.csv"
     )
+    dr2_or_dr3_xmatch = 'dr3' # or "dr2"
     ##########################################
 
     overwrite_bool = False
@@ -123,21 +124,44 @@ if __name__ == "__main__":
     if 'log10_period' not in df.columns:
         df['log10_period'] = np.log10(df['period'])
 
-    gcsvpath = '/Users/luke/local/QLP/QLP_s1s55_X_GDR2_parallax_gt_2.csv'
+    if dr2_or_dr3_xmatch == 'dr2':
+        gcsvpath = '/Users/luke/local/QLP/QLP_s1s55_X_GDR2_parallax_gt_2.csv'
+        selcols = 'dr2_source_id,ra,dec,parallax,pmra,pmdec,M_G,bp_rp,ticid'.split(",")
+    elif dr2_or_dr3_xmatch == 'dr3':
+        gcsvpath = '/Users/luke/local/QLP/QLP_s1s55_X_GDR2_to_GDR3_parallax_gt_2.csv'
+        selcols = (
+            'dr3_source_id,dr2_source_id,ra,dec,parallax,pmra,pmdec,'+
+            'radial_velocity,M_G,bp_rp,non_single_star,ruwe,angular_distance,'+
+            'abs_magnitude_difference,ticid'
+        ).split(",")
     gdf = pd.read_csv(gcsvpath)
-    selcols = 'dr2_source_id,ra,dec,parallax,pmra,pmdec,M_G,bp_rp,ticid'.split(",")
     gdf = gdf[selcols]
 
     mdf = df.merge(gdf, on='ticid', how='inner')
 
-    from sunnyhills.physicalpositions import calculate_XYZ_given_RADECPLX
-    x,y,z = calculate_XYZ_given_RADECPLX(mdf.ra, mdf.dec, mdf.parallax)
-    mdf['x'] = x
-    mdf['y'] = y
-    mdf['z'] = z
+    if dr2_or_dr3_xmatch == 'dr2':
+        from earhart.physicalpositions import calculate_XYZ_given_RADECPLX
+        x,y,z = calculate_XYZ_given_RADECPLX(mdf.ra, mdf.dec, mdf.parallax)
+        mdf['x'] = x
+        mdf['y'] = y
+        mdf['z'] = z
+    elif dr2_or_dr3_xmatch == 'dr3':
+        from earhart.physicalpositions import calculate_XYZUVW_given_RADECPLXPMRV
+        x,y,z,U,V,W = calculate_XYZUVW_given_RADECPLXPMRV(
+            mdf.ra, mdf.dec, mdf.parallax,
+            mdf.pmra, mdf.pmdec, mdf.radial_velocity
+        )
+        mdf['x'] = x
+        mdf['y'] = y
+        mdf['z'] = z
+        mdf['U'] = U
+        mdf['V'] = V
+        mdf['W'] = W
+
+    s = '_dr2' if dr2_or_dr3_xmatch == 'dr2' else '_dr3'
 
     suppcsvpath = join(os.path.dirname(tarballdir),
-                       "0to500pc_quicklook_results_trimmed_supp.csv")
+                       f"0to500pc_quicklook_results_trimmed_supp{s}.csv")
     mdf.to_csv(suppcsvpath, index=False)
     print(f"Wrote {suppcsvpath}")
 
@@ -145,6 +169,6 @@ if __name__ == "__main__":
     mdf = mdf.drop_duplicates(subset='ticid', keep='first')
 
     suppcsvpath = join(os.path.dirname(tarballdir),
-                       "0to500pc_quicklook_results_trimmed_supp_nodup.csv")
+                       f"0to500pc_quicklook_results_trimmed_supp_nodup{s}.csv")
     mdf.to_csv(suppcsvpath, index=False)
     print(f"Wrote {suppcsvpath}")
