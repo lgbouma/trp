@@ -36,7 +36,7 @@ LOGEXCEPTION = LOGGER.exception
 #############
 ## IMPORTS ##
 #############
-import os, pickle
+import os, pickle, re
 from os.path import join
 from glob import glob
 import numpy as np, pandas as pd
@@ -46,10 +46,11 @@ from trp import pipeline_utils as pu
 
 from trp.starlists import get_ticids
 from trp.getters import get_lcpaths_fromlightkurve_given_ticid
-from trp.lcprocessing import rotation_periodsearch, calculate_lsp
+from trp.lcprocessing import (
+    rotation_periodsearch, calculate_lsp, time_bin_lightcurve
+)
 
 from complexrotators.lcprocessing import prepare_cpv_light_curve
-from astrobase.lcmath import time_bin_magseries
 from astropy.io import fits
 
 AESTHETIC_IMPORT_WORKS = 0
@@ -62,8 +63,16 @@ except:
 #############
 
 def run_trp(sample_id, mask_known_transits=False, write_vetplot=False,
-            forcerun=False):
+            forcerun=False, lcpipeline='qlp', periodogram_method='astropyls'):
     """
+    lcpipeline:
+        'qlp', 'spoc2min', or 'unpopular'.  If 'unpopular', need to have
+        created your light curves separately.  'qlp' and 'spoc2min' has logic
+        to look on harddrive.
+
+    periodogram_method:
+        'astropyls' is the only fully-implemented option
+
     sample_id:
         This unique identifying string pairs to a list including at least one
         ticid, via `trp.starlists.get_ticids`.
@@ -79,9 +88,8 @@ def run_trp(sample_id, mask_known_transits=False, write_vetplot=False,
     #################
     # begin options #
     #################
-    lcpipeline = 'qlp' # "qlp" or "spoc2min"
-    periodogram_method = 'astropyls' # ... is the only fully-implemented option
-    cache_periodogram_pkls = 0
+    cache_periodogram_pkls = 1
+
     ###############
     # end options #
     ###############
@@ -131,11 +139,11 @@ def find_rotperiod(ticid, sample_id, forcerun=0, lcpipeline='qlp',
                    periodogram_method='astropyls', write_vetplot=0,
                    cache_periodogram_pkls=1, mask_known_transits=0):
     """
-    This pipeline takes a light curve (SPOC 2-minute or QLP), remove non-zero
-    quality flags, and median-normalizes.  It then bins to a 30 minute cadence,
-    and runs a periodogram (by default, lomb scargle) on the resulting points.
-    Results are cached in a mix of text files using `configparser` and pickle
-    files.
+    This pipeline takes a light curve (SPOC 2-minute, QLP, or unpopular),
+    removes non-zero quality flags, and median-normalizes.  It then bins to a
+    30 minute cadence, and runs a periodogram (by default, lomb scargle) on the
+    resulting points.  Results are cached in a mix of text files using
+    `configparser` and pickle files.
 
     Args:
 
@@ -175,7 +183,7 @@ def find_rotperiod(ticid, sample_id, forcerun=0, lcpipeline='qlp',
     # set up / parse log files
     #
 
-    assert lcpipeline in ["qlp", "spoc2min"]
+    assert lcpipeline in ["qlp", "spoc2min", "unpopular"]
 
     cachedir = join(CACHEDIR, "rotperiod_finding")
     if not os.path.exists(cachedir): os.mkdir(cachedir)
@@ -221,6 +229,13 @@ def find_rotperiod(ticid, sample_id, forcerun=0, lcpipeline='qlp',
             ticid, lcpipeline, cachedir=cachedir, require_lc=0
         )
 
+    if lcpipeline == 'unpopular':
+        LOGINFO(f"Beginning unpopular fileglob search for TIC {ticid}...")
+        # a hack, for now
+        LCDIR = '/Users/luke/Dropbox/proj/wrapunpopular/results/sco-cen-quicklook'
+        lcpaths = glob(join(LCDIR, f"*{ticid}*_cpm_llc.csv"))
+        LOGINFO(f"Got N={len(lcpaths)} for TIC {ticid}...")
+
     if len(lcpaths) == 0:
         LOGINFO(f"TIC{ticid}: Failed to get any light curves; continue.")
         return 0
@@ -234,7 +249,7 @@ def find_rotperiod(ticid, sample_id, forcerun=0, lcpipeline='qlp',
         assert os.path.exists(lcpath)
 
         # instantiate the log
-        lcpbase = os.path.basename(lcpath).replace(".fits", "")
+        lcpbase = re.sub(r'\.(fits|csv)$', '', os.path.basename(lcpath))
         logpath = join(cachedir, f'{lcpbase}_runstatus.log')
         if not os.path.exists(logpath):
             lcpd = {
@@ -252,11 +267,12 @@ def find_rotperiod(ticid, sample_id, forcerun=0, lcpipeline='qlp',
                 if not forcerun:
                     continue
 
-        with fits.open(lcpath) as hdulist:
-            hdr = hdulist[0].header
-        selcols = "RA_OBJ,DEC_OBJ,TESSMAG,RADIUS,LOGG,MASS,TEFF".split(",")
-        starinfod = {k:hdr[k] for k in selcols}
-        pu.save_status(logpath, 'starinfo', starinfod)
+        if lcpath.endswith(".fits"):
+            with fits.open(lcpath) as hdulist:
+                hdr = hdulist[0].header
+            selcols = "RA_OBJ,DEC_OBJ,TESSMAG,RADIUS,LOGG,MASS,TEFF".split(",")
+            starinfod = {k:hdr[k] for k in selcols}
+            pu.save_status(logpath, 'starinfo', starinfod)
 
         (time, flux, qual, x_obs, y_obs, _, _, _, cadence_sec,
          sector, starid) = prepare_rot_light_curve(
@@ -280,10 +296,10 @@ def find_rotperiod(ticid, sample_id, forcerun=0, lcpipeline='qlp',
             pu.save_status(logpath, 'exitcode', exitcode)
             continue
 
-        bd = time_bin_magseries(x_obs, y_obs, minbinelems=1)
-        btime, bflux = bd['binnedtimes'], bd['binnedmags']
+        bin_size_days = 30 / (60*24)
+        btime, bflux = time_bin_lightcurve(x_obs, y_obs, bin_size_days)
 
-        if bd['nbins'] <= 20:
+        if np.sum(np.isfinite(y_obs)) <= 20:
             LOGWARNING(f"{starid}: Failed; too few points for a period.")
             exitcode = {'exitcode': 2}
             pu.save_status(logpath, 'exitcode', exitcode)
