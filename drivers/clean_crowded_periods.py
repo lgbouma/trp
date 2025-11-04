@@ -29,6 +29,7 @@ if not os.path.exists(radepath):
     sdf.to_csv(radepath, index=False)
     print(f'Wrote {radepath}')
     print('Go to the Gaia archive and run the crossmatch.')
+    assert 0
 
 # run on gaia archive:
 # (a port of given_source_ids_get_neighbor_counts)
@@ -49,8 +50,10 @@ if not os.path.exists(radepath):
 
 source_ids = nparr(df['dr2_source_id']).astype(np.int64)
 
-vot10path = join(localdir, "trp_500pc_nbhrcount_10arcsec-result.vot.gz")
-vot20path = join(localdir, "trp_500pc_nbhrcount_20arcsec-result.vot.gz")
+vot10path = join(localdir, "trp_500pc_nbhrcount_10arcsec_20240715-result.vot.gz")
+vot20path = join(localdir, "trp_500pc_nbhrcount_20arcsec_20240715-result.vot.gz")
+assert os.path.exists(vot10path)
+assert os.path.exists(vot20path)
 
 from cdips.utils.gaiaqueries import _big_nbhr_count_cleaner
 
@@ -74,6 +77,7 @@ df.to_csv(suppcsvpath, index=False)
 print(f"Wrote {suppcsvpath}")
 
 # NOTE if you wanted to remove binaries... could add RUWE....
+# NOTE: relevant cuts for SDSS selection function:
 sel = (
     (df.flag_dr2_crowding_20 == 0)
     &
