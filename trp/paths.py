@@ -4,7 +4,7 @@ from os.path import join
 
 VERBOSE = 0
 
-DATADIR = join(__path__[0], "data")
+DATADIR = join(os.path.dirname(__path__[0]), "data")
 TARGETDIR = join(DATADIR, "targetlists")
 
 # archive (backed-up) results here
