@@ -4,6 +4,7 @@ See docstring for trp_pipeline.run_trp for verbose explanation.
 
 Example usage:
 `python run_trp.py debug`
+`python run_trp.py mystarlist.csv --writevetplot --lcpipeline unpopular`
 `python run_trp.py example_hjlist.csv --maskknowntransits --writevetplot`
 """
 import sys
@@ -37,13 +38,20 @@ def main():
         help="Overwrite pre-existing cached files (default:False)"
     )
 
+    parser.add_argument(
+        "--lcpipeline",
+        default="qlp",
+        help="Light curve pipeline identifier (default: qlp)"
+    )
+
     args = parser.parse_args()
 
     run_trp(
         args.sample_id,
         mask_known_transits=args.maskknowntransits,
         write_vetplot=args.writevetplot,
-        forcerun=args.forcerun
+        forcerun=args.forcerun,
+        lcpipeline=args.lcpipeline
     )
 
 if __name__ == "__main__":
