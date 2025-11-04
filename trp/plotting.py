@@ -60,6 +60,7 @@ from astropy.coordinates import SkyCoord
 from astropy.io import fits
 from astropy.time import Time
 from astropy.table import Table
+from astropy.stats import sigma_clip, mad_std
 
 import matplotlib.patheffects as pe
 from matplotlib.ticker import MaxNLocator, FixedLocator, FuncFormatter
@@ -98,50 +99,65 @@ def plot_rotvetter(
     # get data
     d = periodsearch_result
     d['times'], d['fluxs'] = d['x_obs'], d['y_obs']
-    hdul = fits.open(lcpath)
-    hdr = hdul[0].header
-    data = hdul[1].data
-    hdul.close()
+
+    if lcpath.endswith(".fits"):
+        hdul = fits.open(lcpath)
+        hdr = hdul[0].header
+        data = hdul[1].data
+        hdul.close()
+    elif lcpath.endswith(".csv"):
+        data = pd.read_csv(lcpath)
+        hdr = None
+        fname = os.path.basename(lcpath)
+        sector = int(fname.split("_")[1].lstrip("s0"))
+        ticid = str(fname.split("_")[0].lstrip("TIC"))
+        cam = int(fname.split("_")[2])
+        ccd = int(fname.split("_")[3])
 
     # quality flags
     QUALITYKEYDICT = {
         'spoc2min': 'QUALITY',
+        'tess-spoc': 'QUALITY',
         'qlp': 'QUALITY',
-        'cdips': 'IRQ3'
+        'cdips': 'IRQ3',
+        'unpopular': None
     }
-    qual = data[QUALITYKEYDICT[lcpipeline]]
-    if lcpipeline in ['spoc2min', 'qlp']:
+
+    if QUALITYKEYDICT[lcpipeline] is not None:
+        qual = d[QUALITYKEYDICT[lcpipeline]]
+
+    if lcpipeline in ['spoc2min', 'qlp', 'tess-spoc']:
+        cadenceno = d['CADENCENO']
         sel = (qual == 0)
+
     elif lcpipeline == 'cdips':
         sel = (qual == 'G')
 
-    # centroid data (read; not used)
-    CENTRKEYDICT = {
-        'spoc2min': [
-            'MOM_CENTR2', # column
-            'MOM_CENTR1' # row
-        ],
-        'qlp': [
-            'SAP_X', # column
-            'SAP_Y' # row
-        ],
-        'cdips': [
-            'XIC', # column
-            'YIC' # row
-        ]
-    }
-    xc = data[CENTRKEYDICT[lcpipeline][0]][sel] # column
-    yc = data[CENTRKEYDICT[lcpipeline][1]][sel] # row
+    elif lcpipeline == 'unpopular':
+        # for unpopular, sigma clip (iteratively)
+        clipped = sigma_clip(
+            d['fluxs'],
+            sigma=4.0,
+            maxiters=5,
+            cenfunc=np.nanmedian,
+            stdfunc=mad_std  # robust scale
+        )
+        sel = ~clipped.mask
+        qual = sel.astype(int)
 
     # background data
     BKGDKEYDICT = {
         'spoc2min': 'SAP_BKG',
         'qlp': 'SAP_BKG',
-        'cdips': 'BGV'
+        'cdips': 'BGV',
+        'unpopular': 'cpm_pred'
     }
-    bgv = data[BKGDKEYDICT[lcpipeline]][sel]
-
-    assert len(xc) == len(d['times'])
+    if lcpipeline != 'unpopular':
+        bgv = nparr(data[BKGDKEYDICT[lcpipeline]][sel])
+        bgv_time = d['times']
+    else:
+        bgv = nparr(data['cpm_pred'])
+        bgv_time = nparr(data['time'])
 
     # make plot
     plt.close('all')
@@ -151,15 +167,15 @@ def plot_rotvetter(
     fig = plt.figure(figsize=(8,6))
     axd = fig.subplot_mosaic(
         """
-        AAAAAACC
-        AAAAAACC
-        BBBDDDEE
-        BBBDDDEE
-        FFFFFFEE
+        AAAAAAAA
+        AAAAAAAA
+        CCDDGGEE
+        CCDDGGEE
+        FFFFFFFF
         """
     )
 
-    axd['A'].get_shared_x_axes().join(axd['A'], axd['F'])
+    axd['A'].get_shared_x_axes().joined(axd['A'], axd['F'])
 
     #
     # sap flux vs time (2hr bin over whatever cadence)
@@ -180,19 +196,17 @@ def plot_rotvetter(
     x1 = x0 + d['period']
     xval = x0 + (x1 - x0)/2
     xerr = x1 - xval
-    #ax.hlines(yval, ymin, ymax, colors='red', alpha=1,
-    #          linestyles='-', zorder=5, linewidths=2)
     ax.errorbar(xval, yval, xerr=xerr, alpha=1,
                 marker='.', elinewidth=1, capsize=2, lw=0, mew=0.1,
                 color='red', markersize=0, zorder=5)
 
     ylim = get_ylimguess(1e2*(bd['binnedmags']-np.nanmean(bd['binnedmags'])))
-    ax.update({'xlabel': 'Time [BTJD]', 'ylabel': 'SAP Flux [%]', 'ylim': ylim})
+    ax.update({'xlabel': 'Time [BTJD]', 'ylabel': 'Flux [%]', 'ylim': ylim})
 
     #
     # pdm periodogram
     #
-    ax = axd['B']
+    ax = axd['C']
 
     ax.plot(d['lsp']['periods'], d['lsp']['power'], c='k', lw=1)
     ax.scatter(d['lsp']['nbestperiods'][:5], d['lsp']['nbestlspvals'][:5],
@@ -229,7 +243,7 @@ def plot_rotvetter(
         fig=None, ax=ax, savethefigure=False, findpeaks_result=None,
         showxticklabels=True
     )
-    txt = f'{d["period"]:.1f} d'
+    txt = f'{d["period"]:.2f} d'
     ax.text(
         0.95, 0.05, txt, transform=ax.transAxes, fontsize='medium', ha='right',
         va='bottom'
@@ -244,9 +258,9 @@ def plot_rotvetter(
     ax = axd['F']
     nbgv = bgv/np.nanmedian(bgv)
 
-    bd = time_bin_magseries(d['times'], nbgv, binsize=7200, minbinelems=1)
+    bd = time_bin_magseries(bgv_time, nbgv, binsize=7200, minbinelems=1)
     yoffset = np.nanmean(bd['binnedmags'])
-    ax.scatter(d['times'], nbgv, c='lightgray', s=0.5, zorder=1)
+    ax.scatter(bgv_time, nbgv, c='lightgray', s=0.5, zorder=1)
     ax.scatter(bd['binnedtimes'], bd['binnedmags'],
                c='k', s=3, zorder=2, rasterized=True)
     ylim = get_ylimguess(bd['binnedmags'])
@@ -261,52 +275,64 @@ def plot_rotvetter(
     ax.set_axis_off()
 
     # tic8 info
-    TEFFKEYDICT = {
-        'spoc2min': 'TEFF',
-        'qlp': 'TEFF',
-        'cdips': 'TICTEFF'
-    }
-    PMRAKEYDICT = {
-        'spoc2min': 'PMRA',
-        'qlp': 'PMRA',
-        'cdips': 'PM_RA[mas/yr]'
-    }
-    PMDECKEYDICT = {
-        'spoc2min': 'PMDEC',
-        'qlp': 'PMDEC',
-        'cdips': 'PM_Dec[mas/year]'
-    }
+    if hdr is not None:
+        TEFFKEYDICT = {
+            'spoc2min': 'TEFF',
+            'qlp': 'TEFF',
+            'cdips': 'TICTEFF'
+        }
+        PMRAKEYDICT = {
+            'spoc2min': 'PMRA',
+            'qlp': 'PMRA',
+            'cdips': 'PM_RA[mas/yr]'
+        }
+        PMDECKEYDICT = {
+            'spoc2min': 'PMDEC',
+            'qlp': 'PMDEC',
+            'cdips': 'PM_Dec[mas/year]'
+        }
 
-    ticid = str(hdr['TICID'])
-    sector = str(hdr['SECTOR'])
-    cam = str(hdr['CAMERA'])
-    ccd = str(hdr['CCD'])
-    Tmag = f"{hdr['TESSMAG']:.1f}"
-    if hdr[TEFFKEYDICT[lcpipeline]] is not None and hdr[TEFFKEYDICT[lcpipeline]] != 'nan':
-        teff_tic8 = f"{int(hdr[TEFFKEYDICT[lcpipeline]]):d} K"
-    else:
-        teff_tic8 = f"NaN"
-    if hdr['RA_OBJ'] != 'nan':
-        ra = f"{hdr['RA_OBJ']:.2f}"
-    else:
-        ra = 'NaN'
-    if hdr['DEC_OBJ'] != 'nan':
-        dec = f"{hdr['DEC_OBJ']:.2f}"
-    else:
-        dec = 'NaN'
-    if hdr[PMRAKEYDICT[lcpipeline]] is not None and hdr[PMRAKEYDICT[lcpipeline]] != 'nan':
-        pmra = f"{hdr[PMRAKEYDICT[lcpipeline]]:.1f}"
-    else:
-        pmra = 'NaN'
-    if hdr[PMDECKEYDICT[lcpipeline]] is not None and hdr[PMDECKEYDICT[lcpipeline]] != 'nan':
-        pmdec = f"{hdr[PMDECKEYDICT[lcpipeline]]:.1f}"
-    else:
-        pmdec = 'NaN'
-    ra_obj, dec_obj = hdr['RA_OBJ'], hdr['DEC_OBJ']
-    c_obj = SkyCoord(ra_obj, dec_obj, unit=(u.deg), frame='icrs')
+        ticid = str(hdr['TICID'])
+        sector = str(hdr['SECTOR'])
+        cam = str(hdr['CAMERA'])
+        ccd = str(hdr['CCD'])
+        Tmag = f"{hdr['TESSMAG']:.1f}"
+        if hdr[TEFFKEYDICT[lcpipeline]] is not None and hdr[TEFFKEYDICT[lcpipeline]] != 'nan':
+            teff_tic8 = f"{int(hdr[TEFFKEYDICT[lcpipeline]]):d} K"
+        else:
+            teff_tic8 = f"NaN"
+        if hdr['RA_OBJ'] != 'nan':
+            ra = f"{hdr['RA_OBJ']:.2f}"
+        else:
+            ra = 'NaN'
+        if hdr['DEC_OBJ'] != 'nan':
+            dec = f"{hdr['DEC_OBJ']:.2f}"
+        else:
+            dec = 'NaN'
+        if hdr[PMRAKEYDICT[lcpipeline]] is not None and hdr[PMRAKEYDICT[lcpipeline]] != 'nan':
+            pmra = f"{hdr[PMRAKEYDICT[lcpipeline]]:.1f}"
+        else:
+            pmra = 'NaN'
+        if hdr[PMDECKEYDICT[lcpipeline]] is not None and hdr[PMDECKEYDICT[lcpipeline]] != 'nan':
+            pmdec = f"{hdr[PMDECKEYDICT[lcpipeline]]:.1f}"
+        else:
+            pmdec = 'NaN'
+        ra_obj, dec_obj = hdr['RA_OBJ'], hdr['DEC_OBJ']
+        c_obj = SkyCoord(ra_obj, dec_obj, unit=(u.deg), frame='icrs')
 
-    # gaia info
-    dr2_source_id = tic_to_gaiadr2(ticid)
+        # gaia info
+        dr2_source_id = tic_to_gaiadr2(ticid)
+    else:
+        assert lcpipeline == 'unpopular'
+        # Direct crossmatch via https://mastweb.stsci.edu/mcasjobs/
+        # specifically,
+        # https://mastweb.stsci.edu/mcasjobs/jobdetails.aspx?id=116628984
+        dr2_x_tic8_ftrpath = '/Users/luke/local/TARS/tic8_plxGT2_TmagLT17_lukebouma.ftr'
+        df = pd.read_feather(dr2_x_tic8_ftrpath)
+        dr2_source_id = df.loc[df.ID == int(ticid), 'GAIA'].iloc[0]
+        Tmag = float(df.loc[df.ID == int(ticid), 'Tmag'].iloc[0])
+        assert len(dr2_source_id) > 15
+
     simbad_name = tic_to_simbad(ticid)
 
     runid = f"dr2_{dr2_source_id}"
@@ -331,6 +357,14 @@ def plot_rotvetter(
     except AttributeError:
         ruwe = 'NaN'
 
+    if lcpipeline == 'unpopular':
+        ra_obj, dec_obj = float(gdf['ra'].iloc[0]), float(gdf['dec'].iloc[0])
+        c_obj = SkyCoord(ra_obj, dec_obj, unit=(u.deg), frame='icrs')
+
+    ra = f"{gdf['ra'].iloc[0]:.2f}"
+    dec = f"{gdf['dec'].iloc[0]:.2f}"
+    pmra = f"{gdf['pmra'].iloc[0]:.1f}"
+    pmdec = f"{gdf['pmdec'].iloc[0]:.1f}"
     Gmag = f"{gdf['phot_g_mean_mag'].iloc[0]:.1f}"
     Rpmag = f"{gdf['phot_rp_mean_mag'].iloc[0]:.1f}"
     Bpmag = f"{gdf['phot_bp_mean_mag'].iloc[0]:.1f}"
@@ -341,7 +375,7 @@ def plot_rotvetter(
     dist = f"{dist_pc:.1f}"
 
     # nbhr info
-    ticids, tmags = get_2px_neighbors(c_obj, hdr['TESSMAG'])
+    ticids, tmags = get_2px_neighbors(c_obj, Tmag)
     brightest_inds_first = np.argsort(tmags)
     ticids = ticids[brightest_inds_first]
     tmags = tmags[brightest_inds_first]
@@ -350,7 +384,7 @@ def plot_rotvetter(
     MAX_N = 7
     if N_nbhrs >= 1:
         for _ticid, tmag in zip(ticids[1:MAX_N], tmags[1:MAX_N]):
-            nbhrstr += f"TIC {_ticid}: ΔT={tmag-hdr['TESSMAG']:.1f}\n"
+            nbhrstr += f"TIC {_ticid}: ΔT={tmag-Tmag:.1f}\n"
 
     txt = (
         f"{simbad_name}\n"
@@ -360,7 +394,6 @@ def plot_rotvetter(
         "—\n"
         f"α={ra}, δ={dec} (deg)\n"
         f"T={Tmag}\n"
-        f"TIC8 Teff={teff_tic8}\n"
         f"G={Gmag}, RP={Rpmag}, BP={Bpmag}\n"
         f"BP-RP={bp_rp}\n"
         f"RUWE={ruwe}\n"
@@ -383,10 +416,7 @@ def plot_rotvetter(
     #
     # DSS query
     #
-    ra = hdr['RA_OBJ']
-    dec = hdr['DEC_OBJ']
-
-    dss_overlay(fig, axd, ra, dec)
+    dss_overlay(fig, axd, float(ra), float(dec), key='G')
 
     # set naming options
     s = ''
