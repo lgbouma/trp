@@ -61,7 +61,8 @@ except:
 
 #############
 
-def run_trp(sample_id):
+def run_trp(sample_id, mask_known_transits=False, write_vetplot=False,
+            forcerun=False):
     """
     sample_id:
         This unique identifying string pairs to a list including at least one
@@ -78,9 +79,6 @@ def run_trp(sample_id):
     #################
     # begin options #
     #################
-    forcepdf = 0 # if yes, perhaps also have "LOCALDEBUG" set true..
-    write_vetplot = 0
-
     lcpipeline = 'qlp' # "qlp" or "spoc2min"
     periodogram_method = 'astropyls' # ... is the only fully-implemented option
     cache_periodogram_pkls = 0
@@ -102,7 +100,8 @@ def run_trp(sample_id):
             ticid, sample_id, forcerun=forcerun, lcpipeline=lcpipeline,
             periodogram_method=periodogram_method,
             write_vetplot=write_vetplot,
-            cache_periodogram_pkls=cache_periodogram_pkls
+            cache_periodogram_pkls=cache_periodogram_pkls,
+            mask_known_transits=mask_known_transits
         )
 
     LOGINFO("Finished 🎉🎉🎉")
@@ -130,7 +129,7 @@ def parse_sample_id(sample_id):
 
 def find_rotperiod(ticid, sample_id, forcerun=0, lcpipeline='qlp',
                    periodogram_method='astropyls', write_vetplot=0,
-                   cache_periodogram_pkls=1):
+                   cache_periodogram_pkls=1, mask_known_transits=0):
     """
     This pipeline takes a light curve (SPOC 2-minute or QLP), remove non-zero
     quality flags, and median-normalizes.  It then bins to a 30 minute cadence,
@@ -263,6 +262,17 @@ def find_rotperiod(ticid, sample_id, forcerun=0, lcpipeline='qlp',
          sector, starid) = prepare_rot_light_curve(
              lcpath, cachedir, lcpipeline=lcpipeline
          )
+
+        if mask_known_transits:
+            # If the system has known planet(s), mask the transits.
+            # TODO: implement
+            raise NotImplementedError('Need to finish implementing this')
+            from trp.getters import get_ephemeris_given_ticid
+            ephem_df = get_ephemeris_given_ticid(ticid)
+            #df.columns = ["Epoch", "Period", "Duration"]
+            t0 = ephem_df["Epoch"].iloc[0]
+            period = ephem_df["Period"].iloc[0]
+            dur = ephem_df["Duration"].iloc[0]  / 24
 
         if y_obs is None:
             LOGWARNING(f"{starid}: Failed; non-finite light curve.")
