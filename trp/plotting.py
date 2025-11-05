@@ -41,7 +41,7 @@ LOGEXCEPTION = LOGGER.exception
 #############
 ## IMPORTS ##
 #############
-import os, pickle
+import os, pickle, socket
 from os.path import join
 from glob import glob
 from datetime import datetime
@@ -83,6 +83,8 @@ from complexrotators.plotting import (
 from cdips.utils.gaiaqueries import (
     given_dr2_sourceids_get_edr3_xmatch, given_source_ids_get_gaia_data
 )
+
+HOSTNAME = socket.gethostname()
 
 def plot_rotvetter(
     outpath,
@@ -327,7 +329,11 @@ def plot_rotvetter(
         # Direct crossmatch via https://mastweb.stsci.edu/mcasjobs/
         # specifically,
         # https://mastweb.stsci.edu/mcasjobs/jobdetails.aspx?id=116628984
-        dr2_x_tic8_ftrpath = '/Users/luke/local/TARS/tic8_plxGT2_TmagLT17_lukebouma.ftr'
+        if 'wh' not in HOSTNAME:
+            dr2_x_tic8_ftrpath = '/Users/luke/local/TARS/tic8_plxGT2_TmagLT17_lukebouma.ftr'
+        else:
+            dr2_x_tic8_ftrpath = '/home/luke/local/TARS/tic8_plxGT2_TmagLT17_lukebouma.ftr'
+
         df = pd.read_feather(dr2_x_tic8_ftrpath)
         dr2_source_id = df.loc[df.ID == int(ticid), 'GAIA'].iloc[0]
         Tmag = float(df.loc[df.ID == int(ticid), 'Tmag'].iloc[0])

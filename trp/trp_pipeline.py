@@ -36,7 +36,7 @@ LOGEXCEPTION = LOGGER.exception
 #############
 ## IMPORTS ##
 #############
-import os, pickle, re
+import os, pickle, re, socket
 from os.path import join
 from glob import glob
 import numpy as np, pandas as pd
@@ -52,6 +52,8 @@ from trp.lcprocessing import (
 
 from complexrotators.lcprocessing import prepare_cpv_light_curve
 from astropy.io import fits
+
+HOSTNAME = socket.gethostname()
 
 AESTHETIC_IMPORT_WORKS = 0
 try:
@@ -193,7 +195,7 @@ def find_rotperiod(ticid, sample_id, forcerun=0, lcpipeline='qlp',
     if not os.path.exists(cachedir): os.mkdir(cachedir)
 
     minexitcode = -1
-    cand_logpaths = glob(join(cachedir, f"*tess*00{ticid}*runstatus.log"))
+    cand_logpaths = glob(join(cachedir, f"*{ticid}*runstatus.log"))
     foundexitcodes = []
     if len(cand_logpaths) > 0:
         for cand_logpath in cand_logpaths:
@@ -207,6 +209,7 @@ def find_rotperiod(ticid, sample_id, forcerun=0, lcpipeline='qlp',
     MINIMUM_EXITCODE = 0
     if forcerun:
         MINIMUM_EXITCODE = -1
+
     if minexitcode >= MINIMUM_EXITCODE and not forcerun:
         LOGINFO(f"TIC{ticid}: found log {cand_logpath} for {ticid} with "
                 f"exitcode {minexitcode}. skip.")
@@ -232,7 +235,10 @@ def find_rotperiod(ticid, sample_id, forcerun=0, lcpipeline='qlp',
     if lcpipeline == 'unpopular':
         LOGINFO(f"Beginning unpopular fileglob search for TIC {ticid}...")
         # a hack, for now
-        LCDIR = '/Users/luke/Dropbox/proj/wrapunpopular/results/sco-cen-quicklook'
+        if 'wh' not in HOSTNAME:
+            LCDIR = '/Users/luke/Dropbox/proj/wrapunpopular/results/sco-cen-quicklook'
+        else:
+            LCDIR = '/home/luke/.trp_cache/rotperiod_finding/sco-cen-quicklook'
         lcpaths = glob(join(LCDIR, f"*{ticid}*_cpm_llc.csv"))
         LOGINFO(f"Got N={len(lcpaths)} for TIC {ticid}...")
 
