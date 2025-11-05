@@ -32,3 +32,5 @@ paper_review
 *_arxiv_*
 *tar.gz
 *vulp*
+scripts/*.csv
+*temp*
