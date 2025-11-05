@@ -120,9 +120,10 @@ def logpaths_to_csv(
     outcsvpath,
     colnames = (
         'lcpath,ticid,starid,sector,cadence_sec,periodogram_method,'
-        'period,bestlspval,t0,nbestperiods,nbestlspvals,exitcode'.split(",")
+        'period,amplitude,a_90_10_model,reduced_chi2,bestlspval,nbestperiods,'
+        'nbestlspvals,p2p_rms,snr_metric,exitcode'.split(",")
     ),
-    chunksize=1000
+    chunksize=50
 ):
 
     cachedir = os.path.dirname(outcsvpath)
@@ -149,4 +150,6 @@ def logpaths_to_csv(
 
     tempcsvpaths = np.sort(glob(join(cachedir, "chunk_*csv")))
     df = pd.concat((pd.read_csv(f) for f in tempcsvpaths))
+    df.to_csv(outcsvpath, index=False)
+    print(f'Made {outcsvpath}')
     return df
